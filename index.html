@@ -592,6 +592,17 @@
     th:first-child, td:first-child { text-align: left; }
     tbody tr:hover { background: #f9fbfc; }
 
+    tfoot td {
+      position: sticky;
+      bottom: 0;
+      z-index: 1;
+      background: #eef6f8;
+      border-top: 2px solid #b8d7df;
+      border-bottom: 0;
+      color: #0f3340;
+      font-weight: 800;
+    }
+
     .pill {
       display: inline-flex;
       align-items: center;
@@ -1090,6 +1101,7 @@
               </tr>
             </thead>
             <tbody id="detailRows"></tbody>
+            <tfoot id="detailTotals"></tfoot>
           </table>
         </div>
       </section>
@@ -1425,6 +1437,7 @@ Nis.26	3.430	₺11.441.396,00	₺3.432.418,80	44	₺130.991,00	₺39.297,30	₺1
     }
     function renderTable(rows) {
       const tbody = document.getElementById("detailRows");
+      const tfoot = document.getElementById("detailTotals");
       tbody.innerHTML = rows.map(r => `
         <tr>
           <td>${r.label}</td>
@@ -1440,6 +1453,30 @@ Nis.26	3.430	₺11.441.396,00	₺3.432.418,80	44	₺130.991,00	₺39.297,30	₺1
           <td class="${r.netIncome < 0 ? "negative-money" : "positive-money"}">${moneyDetail.format(r.netIncome)}</td>
         </tr>
       `).join("");
+      const totals = {
+        totalCount: sum(rows, "totalCount"),
+        cancelledCount: sum(rows, "cancelledCount"),
+        netPenalty: sum(rows, "netPenalty"),
+        grossMunicipal: sum(rows, "grossMunicipal"),
+        companyVat: sum(rows, "companyVat"),
+        municipalIncome: sum(rows, "municipalIncome"),
+        telecom: sum(rows, "telecom"),
+        netIncome: sum(rows, "netIncome")
+      };
+      tfoot.innerHTML = `
+        <tr>
+          <td>Toplam</td>
+          <td>-</td>
+          <td>-</td>
+          <td>${number.format(totals.totalCount)}</td>
+          <td>${number.format(totals.cancelledCount)}</td>
+          <td>${moneyDetail.format(totals.netPenalty)}</td>
+          <td>${moneyDetail.format(totals.grossMunicipal)}</td>
+          <td>${moneyDetail.format(totals.companyVat)}</td>
+          <td>${moneyDetail.format(totals.municipalIncome)}</td>
+          <td>${moneyDetail.format(totals.telecom)}</td>
+          <td class="${totals.netIncome < 0 ? "negative-money" : "positive-money"}">${moneyDetail.format(totals.netIncome)}</td>
+        </tr>`;
       document.getElementById("rowCount").textContent = `${rows.length} ay listeleniyor`;
     }
 
