@@ -373,12 +373,6 @@
     }
 
     .kpis .card {
-      grid-column: span 3;
-    }
-
-    .kpis .card:nth-child(1),
-    .kpis .card:nth-child(2),
-    .kpis .card:nth-child(3) {
       grid-column: span 4;
     }
 
@@ -426,9 +420,7 @@
       overflow-wrap: anywhere;
     }
 
-    .kpis .card:nth-child(n+4) .value {
-      font-size: clamp(18px, 1.7vw, 23px);
-    }
+    /* kpi card sizes are now uniform */
 
     .delta {
       display: flex;
@@ -869,11 +861,6 @@
       .kpis .card {
         grid-column: span 1 !important;
       }
-      .kpis .card:nth-child(1),
-      .kpis .card:nth-child(2),
-      .kpis .card:nth-child(3) {
-        grid-column: span 2 !important;
-      }
       .grid { grid-template-columns: 1fr; }
       .balanced-grid { grid-template-columns: 1fr; }
     }
@@ -899,16 +886,11 @@
 
     @media (max-width: 580px) {
       .kpis {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr;
         gap: 10px;
       }
       .kpis .card {
         grid-column: span 1 !important;
-      }
-      .kpis .card:nth-child(1),
-      .kpis .card:nth-child(2),
-      .kpis .card:nth-child(3) {
-        grid-column: span 2 !important;
       }
       .card {
         min-height: 120px;
@@ -1023,47 +1005,45 @@
 
       <section class="kpis">
         <article class="card">
-          <div class="label">Net Belediye Geliri</div>
+          <div class="label">Fiili Net Kar (Telekom Sonrası)</div>
+          <div class="value" id="kpiActualNet">₺0</div>
+          <div class="kpi-note" id="kpiActualNetNote">Ödenen Gelir - Tüm Telekom Faturaları</div>
+          <div class="delta" id="kpiActualNetDelta"></div>
+          <canvas class="kpi-sparkline" id="sparkActualNet" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
+        </article>
+        <article class="card">
+          <div class="label">Beklenen Net Kar</div>
           <div class="value" id="kpiNet">₺0</div>
-          <div class="kpi-note" id="kpiNetNote">Şirket ve Telekom Ödemesi Sonrası</div>
+          <div class="kpi-note" id="kpiNetNote">Şirket ve Telekom Ödemeleri Sonrası</div>
           <div class="delta" id="kpiNetDelta"></div>
           <canvas class="kpi-sparkline" id="sparkNet" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
         </article>
         <article class="card">
-          <div class="label">Belediye Geliri</div>
-          <div class="value" id="kpiMunicipal">₺0</div>
-          <div class="kpi-note" id="kpiMunicipalNote">Şirket Ödemesi Sonrası</div>
-          <div class="delta" id="kpiMunicipalDelta"></div>
+          <div class="label">Tahsil Edilen Belediye Geliri</div>
+          <div class="value" id="kpiPaidMunicipalNet">₺0</div>
+          <div class="kpi-note" id="kpiPaidMunicipalNetNote">Şirket Ödemesi Sonrası</div>
+          <div class="delta" id="kpiPaidMunicipalNetDelta"></div>
           <canvas class="kpi-sparkline" id="sparkMunicipal" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
+        </article>
+
+        <article class="card">
+          <div class="label">Bekleyen Belediye Geliri</div>
+          <div class="value" id="kpiUnpaidMunicipalNet">₺0</div>
+          <div class="kpi-note">Tahsil Edilmeyi Bekleyen Net Pay</div>
+          <div class="delta" id="kpiUnpaidMunicipalNetDelta"></div>
         </article>
         <article class="card">
           <div class="label">Toplam Ceza Adedi</div>
           <div class="value" id="kpiCount">0</div>
+          <div class="kpi-note">Sistem Tarafından Kesilen Toplam Ceza</div>
           <div class="delta" id="kpiCountDelta"></div>
           <canvas class="kpi-sparkline" id="sparkCount" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
-        </article>
-        <article class="card">
-          <div class="label">Bekleyen Brüt Tutar</div>
-          <div class="value" id="kpiUnpaid">₺0</div>
-          <div class="delta" id="kpiUnpaidDelta"></div>
-        </article>
-        <article class="card">
-          <div class="label">Şirkete Ödenen Ücret</div>
-          <div class="value" id="kpiCompanyVat">₺0</div>
-          <div class="kpi-note">KDV Dahil · Temmuz 2024'e kadar</div>
-          <div class="delta" id="kpiCompanyVatDelta"></div>
         </article>
         <article class="card">
           <div class="label">Tahsilat Oranı</div>
           <div class="value" id="kpiCollectionRate">%0</div>
           <div class="kpi-note">Ödenen / Toplam Brüt Payı</div>
           <div class="delta" id="kpiCollectionRateDelta"></div>
-        </article>
-        <article class="card">
-          <div class="label">İptal Oranı</div>
-          <div class="value" id="kpiCancelRate">%0</div>
-          <div class="kpi-note">İptal / Toplam Ceza Adedi</div>
-          <div class="delta" id="kpiCancelRateDelta"></div>
         </article>
       </section>
 
@@ -1338,10 +1318,10 @@ May.26	4.173	₺13.067.942,00	₺3.920.382,60	36	₺61.794,00	₺18.538,20	₺13
       netIncome: 0,
       totalCount: 0,
       municipalIncome: 0,
-      companyVat: 0,
-      unpaidGross: 0,
       collectionRate: 0,
-      cancelRate: 0
+      actualNetIncome: 0,
+      paidMunicipalNet: 0,
+      unpaidMunicipalNet: 0
     };
 
     function drawChart(canvasId, config) {
@@ -2015,29 +1995,34 @@ May.26	4.173	₺13.067.942,00	₺3.920.382,60	36	₺61.794,00	₺18.538,20	₺13
       const totalIptal = sum(rows, "cancelledCount");
       const cancelRateVal = totalCeza > 0 ? (totalIptal / totalCeza * 100) : 0;
 
+      // Professional KPI values
+      const paidMunicipalNetVal = sum(rows.filter(r => r.status === "Ödendi"), "municipalIncome");
+      const actualNetIncomeVal = paidMunicipalNetVal - sum(rows, "telecom");
+      const unpaidMunicipalNetVal = sum(rows.filter(r => r.status === "Ödenmedi"), "municipalIncome");
+
       // Animate KPIs
+      animateValue("kpiActualNet", prevValues.actualNetIncome, actualNetIncomeVal, 600, money);
       animateValue("kpiNet", prevValues.netIncome, netIncomeVal, 600, money);
+      animateValue("kpiPaidMunicipalNet", prevValues.paidMunicipalNet, paidMunicipalNetVal, 600, money);
+      animateValue("kpiUnpaidMunicipalNet", prevValues.unpaidMunicipalNet, unpaidMunicipalNetVal, 600, money);
       animateNumber("kpiCount", prevValues.totalCount, totalCountVal, 600);
-      animateValue("kpiMunicipal", prevValues.municipalIncome, municipalIncomeVal, 600, money);
-      animateValue("kpiCompanyVat", prevValues.companyVat, companyVatVal, 600, money);
-      animateValue("kpiUnpaid", prevValues.unpaidGross, unpaidGrossVal, 600, money);
       animatePercentage("kpiCollectionRate", prevValues.collectionRate, collectionRateVal, 600);
-      animatePercentage("kpiCancelRate", prevValues.cancelRate, cancelRateVal, 600);
+
+      // Deltas
+      const comparePaidMunicipalNet = sum(compareRows.filter(r => r.status === "Ödendi"), "municipalIncome");
+      const compareActualNetIncome = comparePaidMunicipalNet - sum(compareRows, "telecom");
+      setDelta("kpiActualNetDelta", actualNetIncomeVal, compareActualNetIncome);
 
       setDelta("kpiNetDelta", sum(operationalRows, "netIncome"), sum(compareRows, "netIncome"));
+      setDelta("kpiPaidMunicipalNetDelta", paidMunicipalNetVal, comparePaidMunicipalNet);
+
+      document.getElementById("kpiUnpaidMunicipalNetDelta").textContent = `${number.format(rows.filter(r => r.status === "Ödenmedi").length)} ay bekliyor`;
+      document.getElementById("kpiUnpaidMunicipalNetDelta").className = unpaidMunicipalNetVal > 0 ? "delta negative" : "delta positive";
+
       setDelta("kpiCountDelta", sum(operationalRows, "totalCount"), sum(compareRows, "totalCount"), number);
-      
-      document.getElementById("kpiMunicipalDelta").textContent = "";
-      document.getElementById("kpiMunicipalDelta").className = "delta";
-      
-      document.getElementById("kpiUnpaidDelta").textContent = `${number.format(rows.filter(r => r.status === "Ödenmedi").length)} ay bekliyor`;
-      document.getElementById("kpiUnpaidDelta").className = unpaidGrossVal > 0 ? "delta negative" : "delta positive";
       
       document.getElementById("kpiCollectionRateDelta").textContent = `${rows.filter(r => r.status === "Ödendi").length} ay tahsil edildi`;
       document.getElementById("kpiCollectionRateDelta").className = "delta positive";
-      
-      document.getElementById("kpiCancelRateDelta").textContent = `${number.format(totalIptal)} adet ceza iptal`;
-      document.getElementById("kpiCancelRateDelta").className = "delta";
 
       document.getElementById("paidMonths").textContent = rows.filter(r => r.status === "Ödendi").length;
       document.getElementById("unpaidMonths").textContent = rows.filter(r => r.status === "Ödenmedi").length;
@@ -2050,16 +2035,17 @@ May.26	4.173	₺13.067.942,00	₺3.920.382,60	36	₺61.794,00	₺18.538,20	₺13
         netIncome: netIncomeVal,
         totalCount: totalCountVal,
         municipalIncome: municipalIncomeVal,
-        companyVat: companyVatVal,
-        unpaidGross: unpaidGrossVal,
         collectionRate: collectionRateVal,
-        cancelRate: cancelRateVal
+        actualNetIncome: actualNetIncomeVal,
+        paidMunicipalNet: paidMunicipalNetVal,
+        unpaidMunicipalNet: unpaidMunicipalNetVal
       };
 
       // Draw sparklines (using last 12 months for visual density, or all selected rows if fewer)
       const sparklineData = rows.slice(-12);
+      drawSparkline("sparkActualNet", sparklineData.map(r => (r.status === "Ödendi" ? r.municipalIncome : 0) - r.telecom), "#b45309");
       drawSparkline("sparkNet", sparklineData.map(r => r.netIncome), "#0f766e");
-      drawSparkline("sparkMunicipal", sparklineData.map(r => r.municipalIncome), "#0e7490");
+      drawSparkline("sparkMunicipal", sparklineData.map(r => r.status === "Ödendi" ? r.municipalIncome : 0), "#0e7490");
       drawSparkline("sparkCount", sparklineData.map(r => r.totalCount), "#155e75");
 
       drawLineChart(rows);
