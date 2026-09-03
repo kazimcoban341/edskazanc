@@ -1016,20 +1016,7 @@
       </header>
 
       <section class="kpis">
-        <!-- Row 1: col-3 -->
-        <article class="card col-3">
-          <div class="label">Yatırım Maliyeti (Kurulum)</div>
-          <div class="value" id="kpiInvestment">₺0</div>
-          <div class="kpi-note">KAREL ELEKTRONİK SANAYİ VE TİCARET A.Ş.</div>
-          <div class="delta" style="color: var(--ink-soft);">Kurulum Maliyeti</div>
-        </article>
-        <article class="card col-3">
-          <div class="label">Tahsil Edilen Belediye Geliri</div>
-          <div class="value" id="kpiPaidMunicipalNet">₺0</div>
-          <div class="kpi-note" id="kpiPaidMunicipalNetNote">Şirket Ödemesi Sonrası</div>
-          <div class="delta" id="kpiPaidMunicipalNetDelta"></div>
-          <canvas class="kpi-sparkline" id="sparkMunicipal" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
-        </article>
+        <!-- Row 1: Financial outcomes and collections -->
         <article class="card col-3">
           <div class="label" id="kpiActualNetLabel">Fiili Net Kar (Telekom Sonrası)</div>
           <div class="value" id="kpiActualNet">₺0</div>
@@ -1044,19 +1031,26 @@
           <div class="delta" id="kpiNetDelta"></div>
           <canvas class="kpi-sparkline" id="sparkNet" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
         </article>
-
-        <!-- Row 2: col-3 -->
+        <article class="card col-3">
+          <div class="label">Tahsil Edilen Belediye Geliri</div>
+          <div class="value" id="kpiPaidMunicipalNet">₺0</div>
+          <div class="kpi-note" id="kpiPaidMunicipalNetNote">Şirket Ödemesi Sonrası</div>
+          <div class="delta" id="kpiPaidMunicipalNetDelta"></div>
+          <canvas class="kpi-sparkline" id="sparkMunicipal" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
+        </article>
         <article class="card col-3">
           <div class="label">Bekleyen Belediye Geliri</div>
           <div class="value" id="kpiUnpaidMunicipalNet">₺0</div>
           <div class="kpi-note">Tahsil Edilmeyi Bekleyen Net Pay</div>
           <div class="delta" id="kpiUnpaidMunicipalNetDelta"></div>
         </article>
+
+        <!-- Row 2: Operational drivers and cost context -->
         <article class="card col-3">
-          <div class="label">Şirkete Ödenen Ücret</div>
-          <div class="value" id="kpiCompanyVat">₺0</div>
-          <div class="kpi-note">KDV Dahil · Eylül 2024'e kadar</div>
-          <div class="delta" id="kpiCompanyVatDelta"></div>
+          <div class="label">Tahsilat Oranı</div>
+          <div class="value" id="kpiCollectionRate">%0</div>
+          <div class="kpi-note">Ödenen / Toplam Brüt Payı</div>
+          <div class="delta" id="kpiCollectionRateDelta"></div>
         </article>
         <article class="card col-3">
           <div class="label">Toplam Ceza Adedi</div>
@@ -1066,10 +1060,16 @@
           <canvas class="kpi-sparkline" id="sparkCount" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
         </article>
         <article class="card col-3">
-          <div class="label">Tahsilat Oranı</div>
-          <div class="value" id="kpiCollectionRate">%0</div>
-          <div class="kpi-note">Ödenen / Toplam Brüt Payı</div>
-          <div class="delta" id="kpiCollectionRateDelta"></div>
+          <div class="label">Şirkete Ödenen Ücret</div>
+          <div class="value" id="kpiCompanyVat">₺0</div>
+          <div class="kpi-note">KDV Dahil · Eylül 2024'e kadar</div>
+          <div class="delta" id="kpiCompanyVatDelta"></div>
+        </article>
+        <article class="card col-3">
+          <div class="label">Yatırım Maliyeti (Kurulum)</div>
+          <div class="value" id="kpiInvestment">₺0</div>
+          <div class="kpi-note">Filtrelerden bağımsız sabit yatırım</div>
+          <div class="delta" style="color: var(--ink-soft);">KAREL ELEKTRONİK SANAYİ VE TİCARET A.Ş.</div>
         </article>
       </section>
 
@@ -2180,7 +2180,6 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
   </script>
 </body>
 </html>
-
 
 
 
