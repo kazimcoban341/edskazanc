@@ -516,6 +516,19 @@
       white-space: nowrap;
     }
 
+    .chart-explanation {
+      margin: 8px 2px 0;
+      padding-top: 10px;
+      border-top: 1px solid #e4e9f0;
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .chart-explanation strong {
+      color: #344054;
+    }
+
     canvas {
       width: 100%;
       height: 320px;
@@ -1173,6 +1186,7 @@
             <canvas id="breakEvenChart" aria-label="Yatırım dahil kümülatif beklenen ve tahsilat bazlı net durum"></canvas>
             <div id="breakEvenChartTooltip" class="custom-tooltip"></div>
           </div>
+          <p class="chart-explanation"><strong>Nasıl okunur:</strong> Düz çizgi, tahsil edilmemiş gelirler dahil beklenen sonucu; kesikli çizgi, yalnızca tahsil edilen gelirlerle oluşan durumu gösterir. Beklenen başabaş Mayıs 2026'dır; tahsilat bazlı başabaşa henüz ulaşılamamıştır.</p>
         </article>
       </section>
 
