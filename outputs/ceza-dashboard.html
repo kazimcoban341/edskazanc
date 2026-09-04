@@ -1060,7 +1060,7 @@
         <article class="card col-3 primary-outcome">
           <div class="label" id="kpiActualNetLabel">Tahsilat Bazlı Net Durum</div>
           <div class="value" id="kpiActualNet">₺0</div>
-          <div class="kpi-note" id="kpiActualNetNote">Tahsil edilen belediye geliri − Telekom giderleri − yatırım maliyeti</div>
+          <div class="kpi-note" id="kpiActualNetNote">Tahsil edilen belediye geliri (şirket ücreti sonrası) − Telekom giderleri − yatırım maliyeti</div>
           <div class="delta" id="kpiActualNetDelta"></div>
           <canvas class="kpi-sparkline" id="sparkActualNet" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
         </article>
@@ -1072,14 +1072,14 @@
           <canvas class="kpi-sparkline" id="sparkNet" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
         </article>
         <article class="card col-3">
-          <div class="label">Tahsil Edilen Belediye Geliri</div>
+          <div class="label">Tahsil Edilen Net Belediye Geliri</div>
           <div class="value" id="kpiPaidMunicipalNet">₺0</div>
           <div class="kpi-note" id="kpiPaidMunicipalNetNote">Ödenmiş aylara ait, şirket ücreti düşülmüş belediye payı</div>
           <div class="delta" id="kpiPaidMunicipalNetDelta"></div>
           <canvas class="kpi-sparkline" id="sparkMunicipal" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
         </article>
         <article class="card col-3">
-          <div class="label">Bekleyen Belediye Geliri</div>
+          <div class="label">Bekleyen Net Belediye Geliri</div>
           <div class="value" id="kpiUnpaidMunicipalNet">₺0</div>
           <div class="kpi-note">Ödenmemiş aylara ait, şirket ücreti düşülmüş belediye payı</div>
           <div class="delta" id="kpiUnpaidMunicipalNetDelta"></div>
@@ -1218,7 +1218,7 @@
                 <th class="sort-header" data-sort-key="netPenalty">Net Ceza Tutarı</th>
                 <th class="sort-header" data-sort-key="grossMunicipal">Brüt Belediye Payı</th>
                 <th class="sort-header" data-sort-key="companyVat">Şirket KDV Dahil</th>
-                <th class="sort-header" data-sort-key="municipalIncome">Belediye Geliri</th>
+                <th class="sort-header" data-sort-key="municipalIncome">Net Belediye Geliri (Şirket Ücreti Sonrası)</th>
                 <th class="sort-header" data-sort-key="telecom">Telekom Fatura</th>
                 <th class="sort-header" data-sort-key="netIncome">Net Gelir</th>
               </tr>
@@ -2061,7 +2061,7 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
 
     function exportToCsv() {
       const rows = selectedRows();
-      const csvHeaders = ["Ay", "Durum", "Ödeme Tarihi", "Ceza Adedi", "İptal Adedi", "Net Ceza Tutarı", "Brüt Belediye Payı", "Şirket KDV Dahil", "Belediye Geliri", "Telekom Fatura", "Net Gelir"];
+      const csvHeaders = ["Ay", "Durum", "Ödeme Tarihi", "Ceza Adedi", "İptal Adedi", "Net Ceza Tutarı", "Brüt Belediye Payı", "Şirket KDV Dahil", "Net Belediye Geliri (Şirket Ücreti Sonrası)", "Telekom Fatura", "Net Gelir"];
       
       const csvRows = [
         csvHeaders.join(";"),
@@ -2093,7 +2093,7 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
 
     function exportToExcel() {
       const rows = selectedRows();
-      const headers = ["Ay", "Durum", "Ödeme Tarihi", "Ceza Adedi", "İptal Adedi", "Net Ceza Tutarı", "Brüt Belediye Payı", "Şirket KDV Dahil", "Belediye Geliri", "Telekom Fatura", "Net Gelir"];
+      const headers = ["Ay", "Durum", "Ödeme Tarihi", "Ceza Adedi", "İptal Adedi", "Net Ceza Tutarı", "Brüt Belediye Payı", "Şirket KDV Dahil", "Net Belediye Geliri (Şirket Ücreti Sonrası)", "Telekom Fatura", "Net Gelir"];
       
       const data = [
         headers,
@@ -2430,7 +2430,7 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
       }
       const actualNetNoteEl = document.getElementById("kpiActualNetNote");
       if (actualNetNoteEl) {
-        actualNetNoteEl.textContent = includeInvestment ? "Tahsil edilen belediye geliri − Telekom giderleri − yatırım maliyeti" : "Tahsil edilen belediye geliri − Telekom giderleri (yatırım hariç)";
+        actualNetNoteEl.textContent = includeInvestment ? "Tahsil edilen belediye geliri (şirket ücreti sonrası) − Telekom giderleri − yatırım maliyeti" : "Tahsil edilen belediye geliri (şirket ücreti sonrası) − Telekom giderleri (yatırım hariç)";
       }
 
       // Update expected net labels and notes dynamically
