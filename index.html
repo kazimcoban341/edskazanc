@@ -372,6 +372,26 @@
       align-items: stretch;
     }
 
+    .kpi-section-label {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 2px 0 -4px;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .kpi-section-label::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, #cbd5e1, rgba(203, 213, 225, 0));
+    }
+
     .kpis .card.col-3 {
       grid-column: span 3;
     }
@@ -407,6 +427,26 @@
       right: 0;
       height: 4px;
       background: linear-gradient(90deg, var(--brand), var(--brand-2));
+    }
+
+    .card.primary-outcome {
+      border-color: rgba(30, 64, 175, .3);
+      background: linear-gradient(180deg, rgba(239,246,255,.98), rgba(255,255,255,.98));
+      box-shadow: 0 10px 24px rgba(30, 64, 175, .1);
+    }
+
+    .card.primary-outcome::before {
+      height: 5px;
+      background: linear-gradient(90deg, #1d4ed8, #0f766e);
+    }
+
+    .card.primary-outcome .label {
+      color: #1e3a8a;
+    }
+
+    .card.primary-outcome .value {
+      font-size: clamp(20px, 1.9vw, 26px);
+      font-weight: 820;
     }
 
     .card .label {
@@ -1016,59 +1056,59 @@
       </header>
 
       <section class="kpis">
-        <!-- Row 1: Financial outcomes and collections -->
-        <article class="card col-3">
-          <div class="label" id="kpiActualNetLabel">Fiili Net Kar (Telekom Sonrası)</div>
+        <div class="kpi-section-label">Finansal Sonuç ve Tahsilat</div>
+        <article class="card col-3 primary-outcome">
+          <div class="label" id="kpiActualNetLabel">Tahsilat Bazlı Net Durum</div>
           <div class="value" id="kpiActualNet">₺0</div>
-          <div class="kpi-note" id="kpiActualNetNote">Bugüne Kadarki Gelir - Tüm Telekom Faturaları</div>
+          <div class="kpi-note" id="kpiActualNetNote">Tahsil edilen belediye geliri − Telekom giderleri − yatırım maliyeti</div>
           <div class="delta" id="kpiActualNetDelta"></div>
           <canvas class="kpi-sparkline" id="sparkActualNet" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
         </article>
-        <article class="card col-3">
-          <div class="label" id="kpiNetLabel">Beklenen Net Kar</div>
+        <article class="card col-3 primary-outcome">
+          <div class="label" id="kpiNetLabel">Tüm Tahsilatlar Sonrası Beklenen Net Kâr</div>
           <div class="value" id="kpiNet">₺0</div>
-          <div class="kpi-note" id="kpiNetNote">Şirket ve Telekom Ödemeleri Sonrası</div>
+          <div class="kpi-note" id="kpiNetNote">Tüm belediye gelirlerinden şirket, Telekom ve yatırım maliyetleri düşülmüştür</div>
           <div class="delta" id="kpiNetDelta"></div>
           <canvas class="kpi-sparkline" id="sparkNet" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
         </article>
         <article class="card col-3">
           <div class="label">Tahsil Edilen Belediye Geliri</div>
           <div class="value" id="kpiPaidMunicipalNet">₺0</div>
-          <div class="kpi-note" id="kpiPaidMunicipalNetNote">Şirket Ödemesi Sonrası</div>
+          <div class="kpi-note" id="kpiPaidMunicipalNetNote">Ödenmiş aylara ait, şirket ücreti düşülmüş belediye payı</div>
           <div class="delta" id="kpiPaidMunicipalNetDelta"></div>
           <canvas class="kpi-sparkline" id="sparkMunicipal" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
         </article>
         <article class="card col-3">
           <div class="label">Bekleyen Belediye Geliri</div>
           <div class="value" id="kpiUnpaidMunicipalNet">₺0</div>
-          <div class="kpi-note">Tahsil Edilmeyi Bekleyen Net Pay</div>
+          <div class="kpi-note">Ödenmemiş aylara ait, şirket ücreti düşülmüş belediye payı</div>
           <div class="delta" id="kpiUnpaidMunicipalNetDelta"></div>
         </article>
 
-        <!-- Row 2: Operational drivers and cost context -->
+        <div class="kpi-section-label">Operasyon ve Maliyet</div>
         <article class="card col-3">
           <div class="label">Tahsilat Oranı</div>
           <div class="value" id="kpiCollectionRate">%0</div>
-          <div class="kpi-note">Ödenen / Toplam Brüt Payı</div>
+          <div class="kpi-note">Tahsil edilen brüt belediye payının toplam brüt paya oranı</div>
           <div class="delta" id="kpiCollectionRateDelta"></div>
         </article>
         <article class="card col-3">
           <div class="label">Toplam Ceza Adedi</div>
           <div class="value" id="kpiCount">0</div>
-          <div class="kpi-note">Sistem Tarafından Kesilen Toplam Ceza</div>
+          <div class="kpi-note">Seçili dönemde düzenlenen toplam ceza adedi</div>
           <div class="delta" id="kpiCountDelta"></div>
           <canvas class="kpi-sparkline" id="sparkCount" style="height: 36px; width: 100%; margin-top: 8px;"></canvas>
         </article>
         <article class="card col-3">
-          <div class="label">Şirkete Ödenen Ücret</div>
+          <div class="label">Ödenmiş Şirket Ücreti</div>
           <div class="value" id="kpiCompanyVat">₺0</div>
-          <div class="kpi-note">KDV Dahil · Eylül 2024'e kadar</div>
+          <div class="kpi-note">KDV dahil; ödeme kaydı Eylül 2024'e kadar</div>
           <div class="delta" id="kpiCompanyVatDelta"></div>
         </article>
         <article class="card col-3">
           <div class="label">Yatırım Maliyeti (Kurulum)</div>
           <div class="value" id="kpiInvestment">₺0</div>
-          <div class="kpi-note">Filtrelerden bağımsız sabit yatırım</div>
+          <div class="kpi-note">Tek seferlik kurulum maliyeti; filtrelerden etkilenmez</div>
           <div class="delta" style="color: var(--ink-soft);">KAREL ELEKTRONİK SANAYİ VE TİCARET A.Ş.</div>
         </article>
       </section>
@@ -1110,6 +1150,29 @@
             <span class="hint">Net etki</span>
           </div>
           <div id="breakdownVisual" class="breakdown-visual"></div>
+        </article>
+      </section>
+
+      <section class="grid balanced-grid">
+        <article class="chart-panel">
+          <div class="panel-head">
+            <h2>Tahsilat bazlı–beklenen gelir köprüsü</h2>
+            <span class="hint">Aktif filtre · milyon TL</span>
+          </div>
+          <div style="position: relative;">
+            <canvas id="bridgeChart" aria-label="Tahsilat bazlı ve beklenen gelir arasındaki maliyet köprüsü"></canvas>
+            <div id="bridgeChartTooltip" class="custom-tooltip"></div>
+          </div>
+        </article>
+        <article class="chart-panel">
+          <div class="panel-head">
+            <h2>Kümülatif beklenen başabaş</h2>
+            <span class="hint">Tahakkuk bazlı · ödenmemiş gelirler dahil · yatırım dahil</span>
+          </div>
+          <div style="position: relative;">
+            <canvas id="breakEvenChart" aria-label="Yatırım dahil kümülatif beklenen ve tahsilat bazlı net durum"></canvas>
+            <div id="breakEvenChartTooltip" class="custom-tooltip"></div>
+          </div>
         </article>
       </section>
 
@@ -1637,6 +1700,261 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
         </div>`;
     }
 
+    function drawFinancialBridge(rows) {
+      drawChart("bridgeChart", (ctx, w, h) => {
+        const investmentCost = 37601951.98;
+        const yearFilter = document.getElementById("yearFilter").value;
+        const includeInvestment = yearFilter === "all" || yearFilter === "2023";
+        const gross = sum(rows, "grossMunicipal");
+        const company = -sum(rows, "companyVat");
+        const telecom = -sum(rows, "telecom");
+        const investment = includeInvestment ? -investmentCost : 0;
+        const expected = gross + company + telecom + investment;
+        const waiting = -sum(rows.filter(r => r.status === "Ödenmedi"), "municipalIncome");
+        const actual = expected + waiting;
+        const items = [
+          { label: ["Brüt belediye", "payı"], shortLabel: "Brüt belediye payı", type: "total", value: gross, start: 0, end: gross },
+          { label: ["Şirket", "ücreti"], shortLabel: "Şirket ücreti", type: "delta", value: company, start: gross, end: gross + company },
+          { label: ["Telekom"], shortLabel: "Telekom", type: "delta", value: telecom, start: gross + company, end: gross + company + telecom }
+        ];
+        if (includeInvestment) {
+          items.push({ label: ["Kurulum", "maliyeti"], shortLabel: "Kurulum maliyeti", type: "delta", value: investment, start: gross + company + telecom, end: expected });
+        }
+        items.push(
+          { label: ["Beklenen", "net kâr"], shortLabel: "Beklenen net kâr", type: "checkpoint", value: expected, start: 0, end: expected },
+          { label: ["Bekleyen net", "belediye geliri"], shortLabel: "Bekleyen net belediye geliri", type: "delta", value: waiting, start: expected, end: actual },
+          { label: ["Tahsilat bazlı", "net durum"], shortLabel: "Tahsilat bazlı net durum", type: "total", value: actual, start: 0, end: actual }
+        );
+
+        const pad = { left: 58, right: 14, top: 26, bottom: 66 };
+        const allValues = [0, ...items.flatMap(item => [item.start, item.end])];
+        const rawMin = Math.min(...allValues);
+        const rawMax = Math.max(...allValues);
+        const spread = Math.max(rawMax - rawMin, 1);
+        const min = rawMin - spread * .08;
+        const max = rawMax + spread * .12;
+        const plotH = h - pad.top - pad.bottom;
+        const y = value => pad.top + (max - value) / (max - min) * plotH;
+        const band = (w - pad.left - pad.right) / Math.max(items.length, 1);
+        const barW = Math.max(18, Math.min(44, band * .58));
+
+        chartFrame(ctx, w, h, pad);
+        ctx.font = "11px Segoe UI";
+        ctx.fillStyle = "#667085";
+        for (let i = 0; i <= 4; i++) {
+          const value = max - ((max - min) / 4) * i;
+          ctx.fillText(`${(value / 1000000).toFixed(0)} mn`, 7, pad.top + plotH / 4 * i + 4);
+        }
+
+        if (min < 0 && max > 0) {
+          ctx.save();
+          ctx.setLineDash([5, 4]);
+          ctx.strokeStyle = "#64748b";
+          ctx.beginPath();
+          ctx.moveTo(pad.left, y(0));
+          ctx.lineTo(w - pad.right, y(0));
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        items.forEach((item, index) => {
+          const cx = pad.left + band * index + band / 2;
+          const topY = y(Math.max(item.start, item.end));
+          const bottomY = y(Math.min(item.start, item.end));
+          const height = Math.max(2, bottomY - topY);
+          if (index > 0 && item.type === "delta") {
+            const previous = items[index - 1];
+            const connectorY = y(item.start);
+            const previousX = pad.left + band * (index - 1) + band / 2 + barW / 2;
+            ctx.save();
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = "#98a2b3";
+            ctx.beginPath();
+            ctx.moveTo(previousX, connectorY);
+            ctx.lineTo(cx - barW / 2, connectorY);
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          if (item.type === "delta") {
+            ctx.fillStyle = "#fef3c7";
+            ctx.strokeStyle = "#b45309";
+          } else if (item.type === "checkpoint") {
+            ctx.fillStyle = "#ccfbf1";
+            ctx.strokeStyle = "#0f766e";
+          } else {
+            ctx.fillStyle = "#e2e8f0";
+            ctx.strokeStyle = "#475467";
+          }
+          ctx.lineWidth = 1.5;
+          ctx.fillRect(cx - barW / 2, topY, barW, height);
+          ctx.strokeRect(cx - barW / 2, topY, barW, height);
+
+          ctx.fillStyle = item.value < 0 ? "#93370d" : "#344054";
+          ctx.font = "700 10px Segoe UI";
+          const valueY = item.end >= item.start ? Math.max(13, topY - 7) : Math.min(h - pad.bottom - 4, bottomY + 14);
+          ctx.textAlign = "center";
+          ctx.fillText(`${item.value < 0 ? "−" : ""}${(Math.abs(item.value) / 1000000).toFixed(1)}`, cx, valueY);
+
+          ctx.fillStyle = "#475467";
+          ctx.font = "11px Segoe UI";
+          item.label.forEach((line, lineIndex) => ctx.fillText(line, cx, h - pad.bottom + 22 + lineIndex * 13));
+        });
+        ctx.textAlign = "left";
+
+        const canvas = document.getElementById("bridgeChart");
+        canvas.chartData = items;
+        canvas.chartScale = { pad, band };
+      });
+    }
+
+    function drawBreakEvenChart() {
+      drawChart("breakEvenChart", (ctx, w, h) => {
+        const investmentCost = 37601951.98;
+        let expectedCumulative = -investmentCost;
+        let actualCumulative = -investmentCost;
+        const points = data.map(row => {
+          expectedCumulative += row.netIncome;
+          actualCumulative += (row.status === "Ödendi" ? row.municipalIncome : 0) - row.telecom;
+          return { label: row.label, expected: expectedCumulative, actual: actualCumulative };
+        });
+        const expectedBreakEvenIndex = points.findIndex(point => point.expected >= 0);
+        const actualBreakEvenIndex = points.findIndex(point => point.actual >= 0);
+        const values = [-investmentCost, ...points.flatMap(point => [point.expected, point.actual]), 0];
+        const rawMin = Math.min(...values);
+        const rawMax = Math.max(...values);
+        const spread = Math.max(rawMax - rawMin, 1);
+        const min = rawMin - spread * .08;
+        const max = rawMax + spread * .12;
+        const pad = { left: 58, right: 18, top: 54, bottom: 46 };
+        const plotW = w - pad.left - pad.right;
+        const plotH = h - pad.top - pad.bottom;
+        const x = index => pad.left + plotW / Math.max(points.length - 1, 1) * index;
+        const y = value => pad.top + (max - value) / (max - min) * plotH;
+
+        const legendItems = [
+          { label: "Beklenen net", color: "#0f766e", dashed: false },
+          { label: "Tahsilat bazlı net durum", color: "#475467", dashed: true }
+        ];
+        let legendX = pad.left;
+        legendItems.forEach(item => {
+          ctx.save();
+          ctx.strokeStyle = item.color;
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash(item.dashed ? [6, 4] : []);
+          ctx.beginPath();
+          ctx.moveTo(legendX, 20);
+          ctx.lineTo(legendX + 24, 20);
+          ctx.stroke();
+          ctx.restore();
+          ctx.fillStyle = "#475467";
+          ctx.font = "11px Segoe UI";
+          ctx.fillText(item.label, legendX + 31, 24);
+          legendX += item.label === "Beklenen net" ? 128 : 190;
+        });
+
+        chartFrame(ctx, w, h, pad);
+        ctx.fillStyle = "#667085";
+        ctx.font = "11px Segoe UI";
+        for (let i = 0; i <= 4; i++) {
+          const value = max - ((max - min) / 4) * i;
+          ctx.fillText(`${(value / 1000000).toFixed(0)} mn`, 7, pad.top + plotH / 4 * i + 4);
+        }
+
+        ctx.save();
+        ctx.setLineDash([5, 4]);
+        ctx.strokeStyle = "#64748b";
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y(0));
+        ctx.lineTo(w - pad.right, y(0));
+        ctx.stroke();
+        ctx.restore();
+        ctx.fillStyle = "#475467";
+        ctx.font = "700 10px Segoe UI";
+        ctx.fillText("BAŞABAŞ", pad.left + 4, y(0) - 7);
+
+        ctx.save();
+        ctx.beginPath();
+        points.forEach((point, index) => {
+          const px = x(index), py = y(point.expected);
+          if (index === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        });
+        ctx.strokeStyle = "#0f766e";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        points.forEach((point, index) => {
+          const px = x(index), py = y(point.actual);
+          if (index === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        });
+        ctx.strokeStyle = "#475467";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.restore();
+
+        points.forEach((point, index) => {
+          if (index === expectedBreakEvenIndex || index === points.length - 1) {
+            ctx.beginPath();
+            ctx.arc(x(index), y(point.expected), 4.5, 0, Math.PI * 2);
+            ctx.fillStyle = index === expectedBreakEvenIndex ? "#b45309" : "#0f766e";
+            ctx.fill();
+          }
+          if (index === actualBreakEvenIndex || index === points.length - 1) {
+            ctx.beginPath();
+            ctx.arc(x(index), y(point.actual), 4.5, 0, Math.PI * 2);
+            ctx.fillStyle = index === actualBreakEvenIndex ? "#b45309" : "#475467";
+            ctx.fill();
+          }
+        });
+
+        if (expectedBreakEvenIndex >= 0) {
+          const bx = x(expectedBreakEvenIndex);
+          const by = y(points[expectedBreakEvenIndex].expected);
+          ctx.save();
+          ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = "#b45309";
+          ctx.beginPath();
+          ctx.moveTo(bx, by);
+          ctx.lineTo(bx, h - pad.bottom);
+          ctx.stroke();
+          ctx.restore();
+          ctx.fillStyle = "#93370d";
+          ctx.font = "700 11px Segoe UI";
+          ctx.textAlign = bx > w * .72 ? "right" : "left";
+          ctx.fillText(`Beklenen başabaş: ${points[expectedBreakEvenIndex].label}`, bx + (bx > w * .72 ? -7 : 7), Math.max(pad.top + 12, by - 10));
+          ctx.textAlign = "left";
+        }
+
+        const finalPoint = points[points.length - 1];
+        if (finalPoint) {
+          ctx.font = "700 10px Segoe UI";
+          ctx.textAlign = "right";
+          ctx.fillStyle = "#0f766e";
+          ctx.fillText(`Beklenen ${(finalPoint.expected / 1000000).toFixed(1)} mn`, x(points.length - 1) - 7, Math.max(pad.top + 10, y(finalPoint.expected) - 9));
+          ctx.fillStyle = "#475467";
+          ctx.fillText(`Tahsilat bazlı ${(finalPoint.actual / 1000000).toFixed(1)} mn`, x(points.length - 1) - 7, Math.min(h - pad.bottom - 4, y(finalPoint.actual) + 15));
+          ctx.textAlign = "left";
+        }
+
+        ctx.fillStyle = "#667085";
+        ctx.font = "11px Segoe UI";
+        const tickIndexes = [...new Set([0, ...points.map((_, index) => index).filter(index => data[index].month === 0), points.length - 1])];
+        tickIndexes.forEach(index => {
+          ctx.textAlign = index === 0 ? "left" : index === points.length - 1 ? "right" : "center";
+          ctx.fillText(points[index].label, x(index), h - 17);
+        });
+        ctx.textAlign = "left";
+
+        const canvas = document.getElementById("breakEvenChart");
+        canvas.chartData = points;
+        canvas.chartScale = { pad, min, max };
+      });
+    }
+
     function drawYoYChart() {
       drawChart("yoyChart", (ctx, w, h) => {
         const pad = { left: 62, right: 18, top: 40, bottom: 42 };
@@ -1957,6 +2275,59 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
       yoyCanvas.addEventListener("mouseleave", () => {
         yoyTooltip.style.opacity = "0";
       });
+
+      // bridgeChart Tooltip
+      const bridgeCanvas = document.getElementById("bridgeChart");
+      const bridgeTooltip = document.getElementById("bridgeChartTooltip");
+      bridgeCanvas.addEventListener("mousemove", (e) => {
+        const items = bridgeCanvas.chartData;
+        const scale = bridgeCanvas.chartScale;
+        if (!items || !scale) return;
+        const rect = bridgeCanvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const index = Math.floor((mouseX - scale.pad.left) / scale.band);
+        if (index >= 0 && index < items.length) {
+          const item = items[index];
+          bridgeTooltip.style.opacity = "1";
+          bridgeTooltip.innerHTML = `<strong>${item.shortLabel}</strong><br/>${item.type === "delta" ? "Net etki" : "Ara toplam"}: <strong>${money.format(item.value)}</strong>`;
+          const tooltipRect = bridgeTooltip.getBoundingClientRect();
+          const center = scale.pad.left + scale.band * index + scale.band / 2;
+          bridgeTooltip.style.left = `${Math.min(rect.width - tooltipRect.width, Math.max(0, center - tooltipRect.width / 2))}px`;
+          bridgeTooltip.style.top = "12px";
+        } else {
+          bridgeTooltip.style.opacity = "0";
+        }
+      });
+      bridgeCanvas.addEventListener("mouseleave", () => {
+        bridgeTooltip.style.opacity = "0";
+      });
+
+      // breakEvenChart Tooltip
+      const breakEvenCanvas = document.getElementById("breakEvenChart");
+      const breakEvenTooltip = document.getElementById("breakEvenChartTooltip");
+      breakEvenCanvas.addEventListener("mousemove", (e) => {
+        const points = breakEvenCanvas.chartData;
+        const scale = breakEvenCanvas.chartScale;
+        if (!points || !scale) return;
+        const rect = breakEvenCanvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const plotWidth = rect.width - scale.pad.left - scale.pad.right;
+        const index = Math.round((mouseX - scale.pad.left) / plotWidth * Math.max(points.length - 1, 1));
+        if (index >= 0 && index < points.length) {
+          const point = points[index];
+          breakEvenTooltip.style.opacity = "1";
+          breakEvenTooltip.innerHTML = `<strong>${point.label}</strong><br/>Beklenen net: <strong>${money.format(point.expected)}</strong><br/>Tahsilat bazlı net durum: <strong>${money.format(point.actual)}</strong>`;
+          const tooltipRect = breakEvenTooltip.getBoundingClientRect();
+          const center = scale.pad.left + plotWidth / Math.max(points.length - 1, 1) * index;
+          breakEvenTooltip.style.left = `${Math.min(rect.width - tooltipRect.width, Math.max(0, center - tooltipRect.width / 2))}px`;
+          breakEvenTooltip.style.top = "12px";
+        } else {
+          breakEvenTooltip.style.opacity = "0";
+        }
+      });
+      breakEvenCanvas.addEventListener("mouseleave", () => {
+        breakEvenTooltip.style.opacity = "0";
+      });
     }
 
     function renderTable(rows) {
@@ -2055,17 +2426,17 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
       // Update actual net labels and notes dynamically
       const actualNetLabelEl = document.getElementById("kpiActualNetLabel");
       if (actualNetLabelEl) {
-        actualNetLabelEl.textContent = includeInvestment ? "Fiili Net Kar (Kurulum ve Telekom Sonrası)" : "Fiili Net Kar (Telekom Sonrası)";
+        actualNetLabelEl.textContent = "Tahsilat Bazlı Net Durum";
       }
       const actualNetNoteEl = document.getElementById("kpiActualNetNote");
       if (actualNetNoteEl) {
-        actualNetNoteEl.textContent = includeInvestment ? "Şirket Ödemesi Sonrası Fiili Gelir - Telekom - Kurulum Maliyeti" : "Şirket Ödemesi Sonrası Fiili Gelir - Telekom (Kurulum Hariç)";
+        actualNetNoteEl.textContent = includeInvestment ? "Tahsil edilen belediye geliri − Telekom giderleri − yatırım maliyeti" : "Tahsil edilen belediye geliri − Telekom giderleri (yatırım hariç)";
       }
 
       // Update expected net labels and notes dynamically
       const expectedNetLabelEl = document.getElementById("kpiNetLabel");
       if (expectedNetLabelEl) {
-        expectedNetLabelEl.textContent = "Beklenen Net Kar";
+        expectedNetLabelEl.textContent = "Tüm Tahsilatlar Sonrası Beklenen Net Kâr";
       }
       const fullMonthNames = [
         "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
@@ -2075,7 +2446,7 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
       const latestPeriodText = latestRow ? `${fullMonthNames[latestRow.month]} ${latestRow.year}` : "Temmuz 2026";
       const expectedNetNoteEl = document.getElementById("kpiNetNote");
       if (expectedNetNoteEl) {
-        expectedNetNoteEl.textContent = includeInvestment ? `${latestPeriodText} itibarıyla Yatırım Maliyeti, Şirket ve Telekom ödemeleri sonrası` : "Şirket ve Telekom Ödemeleri Sonrası";
+        expectedNetNoteEl.textContent = includeInvestment ? `${latestPeriodText} itibarıyla; şirket, Telekom ve yatırım maliyetleri düşülmüştür` : `${latestPeriodText} itibarıyla; şirket ve Telekom giderleri düşülmüştür (yatırım hariç)`;
       }
 
       // Animate KPIs
@@ -2141,6 +2512,8 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
       drawStatusChart(rows);
       drawVolumeChart(operationalRows);
       drawBreakdownChart(rows);
+      drawFinancialBridge(rows);
+      drawBreakEvenChart();
       drawYoYChart();
       renderTable(rows);
     }
@@ -2180,6 +2553,3 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
   </script>
 </body>
 </html>
-
-
-
