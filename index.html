@@ -1086,7 +1086,7 @@
             <h2>Aylık detay</h2>
             <span class="hint" id="rowCount"></span>
           </div>
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button id="exportCsv" type="button" style="background: var(--brand); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Dışa Aktar (CSV)
@@ -1094,6 +1094,10 @@
             <button id="exportExcel" type="button" style="background: #16a34a; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
               Dışa Aktar (Excel)
+            </button>
+            <button id="printReport" type="button" title="Antetli rapor olarak yazdır veya PDF olarak kaydet" style="background: #1b2152; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Yazdır / PDF
             </button>
           </div>
         </div>
@@ -2056,6 +2060,229 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
       XLSX.writeFile(wb, `EDS_Gelir_Raporu_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
+    // Aylık detayı kurumsal antetli A4 yatay sayfa olarak yazdırır; tarayıcının yazdırma penceresinden PDF de alınabilir.
+    function printReport() {
+      const rows = selectedRows();
+      const sortedRows = sortForTable(rows);
+      const escape = text => String(text).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+      const cell = (value, formatter = moneyDetail) => value ? formatter.format(value) : "–";
+      const now = new Date();
+      const printedAt = now.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" })
+        + " " + now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+      const periodRows = rows.length ? rows : data;
+      const periodText = `${periodName(periodRows[0])} – ${periodName(periodRows[periodRows.length - 1])}`;
+      const scopeText = selectedYear === "all" ? "Tüm yıllar" : `${selectedYear} yılı`;
+      const logoUrl = new URL("assets/kutahya-belediyesi-logo.webp", location.href).href;
+
+      const includeInvestment = includesInvestment(selectedYear);
+      const investment = includeInvestment ? INVESTMENT_COST : 0;
+      const paidRows = rows.filter(r => r.status === "Ödendi");
+      const unpaidRows = rows.filter(r => r.status === "Ödenmedi");
+      const totals = {
+        totalCount: sum(rows, "totalCount"),
+        cancelledCount: sum(rows, "cancelledCount"),
+        netPenalty: sum(rows, "netPenalty"),
+        grossMunicipal: sum(rows, "grossMunicipal"),
+        companyVat: sum(rows, "companyVat"),
+        municipalIncome: sum(rows, "municipalIncome"),
+        telecom: sum(rows, "telecom"),
+        netIncome: sum(rows, "netIncome")
+      };
+      const expectedNet = totals.netIncome - investment;
+      const actualNet = sum(paidRows, "municipalIncome") - totals.telecom - investment;
+      const municipalTotal = sum(paidRows, "municipalIncome") + sum(unpaidRows, "municipalIncome");
+      const collectionRate = municipalTotal ? sum(paidRows, "municipalIncome") / municipalTotal * 100 : 0;
+      const signClass = value => value < 0 ? "neg" : "";
+
+      const summary = [
+        ["Beklenen net kâr/zarar", money.format(expectedNet), signClass(expectedNet)],
+        ["Tahsilat bazlı net kâr/zarar", money.format(actualNet), signClass(actualNet)],
+        ["Tahsilat oranı", `%${decimal(collectionRate)} (${paidRows.length} / ${paidRows.length + unpaidRows.length} ay)`, ""],
+        ["Bekleyen belediye geliri", money.format(sum(unpaidRows, "municipalIncome")), ""]
+      ];
+
+      const bodyRows = sortedRows.map(r => `
+        <tr class="${r.status === "Ödenmedi" ? "unpaid" : ""}">
+          <td class="left">${escape(r.label)}</td>
+          <td class="left">${escape(r.status)}</td>
+          <td>${escape(r.paymentDate || "–")}</td>
+          <td>${cell(r.totalCount, number)}</td>
+          <td>${cell(r.cancelledCount, number)}</td>
+          <td>${cell(r.netPenalty)}</td>
+          <td>${cell(r.grossMunicipal)}</td>
+          <td>${cell(r.companyVat)}</td>
+          <td>${cell(r.municipalIncome)}</td>
+          <td>${moneyDetail.format(r.telecom)}</td>
+          <td class="${signClass(r.netIncome)}">${moneyDetail.format(r.netIncome)}</td>
+        </tr>`).join("");
+
+      const reconcile = includeInvestment ? `
+          <tr class="reconcile"><td class="left" colspan="10">− Yatırım maliyeti (kurulum)</td><td class="neg">${moneyDetail.format(-INVESTMENT_COST)}</td></tr>
+          <tr class="reconcile result"><td class="left" colspan="10">= Net kâr/zarar (Beklenen)</td><td class="${signClass(expectedNet)}">${moneyDetail.format(expectedNet)}</td></tr>` : "";
+
+      const html = `<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>EDS Ceza Gelirleri Aylık Detay Raporu - ${escape(scopeText)}</title>
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 12mm 10mm 14mm;
+    @bottom-left { content: "T.C. Kütahya Belediyesi · EDS Ceza Gelirleri Aylık Detay Raporu"; font: 7.5pt "Segoe UI", Arial, sans-serif; color: #667085; }
+    @bottom-right { content: "Sayfa " counter(page) " / " counter(pages); font: 7.5pt "Segoe UI", Arial, sans-serif; color: #667085; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #111827;
+    font-size: 8pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  table.report { width: 100%; border-collapse: collapse; }
+  thead { display: table-header-group; }
+  tfoot { display: table-row-group; }
+  tr { break-inside: avoid; }
+
+  /* Antet ilk sayfanın başında; sonraki sayfalarda kurum adı ve sayfa numarası alt bilgide */
+  .lh {
+    display: grid;
+    grid-template-columns: 22mm 1fr 58mm;
+    align-items: center;
+    gap: 6mm;
+    padding-bottom: 3mm;
+    border-bottom: 1.4pt solid #1b2152;
+    box-shadow: 0 1.6pt 0 #c9b766;
+  }
+  .lh img { width: 20mm; height: 20mm; display: block; }
+  .lh .org { text-align: center; line-height: 1.25; }
+  .lh .org .tc { font-size: 10pt; font-weight: 700; letter-spacing: .08em; color: #1b2152; }
+  .lh .org .name { font-size: 14pt; font-weight: 800; letter-spacing: .06em; color: #1b2152; }
+  .lh .org .title { margin-top: 2mm; font-size: 10pt; font-weight: 700; color: #334155; }
+  .lh .meta { font-size: 7.5pt; line-height: 1.6; color: #334155; text-align: right; }
+  .lh .meta strong { color: #111827; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0; }
+  .summary-item { border: 0.6pt solid #cbd5e1; border-radius: 1.5mm; padding: 2mm 3mm; background: #f6f7fb; }
+  .summary-item span { display: block; font-size: 7pt; color: #475467; }
+  .summary-item strong { display: block; margin-top: 0.8mm; font-size: 10pt; font-variant-numeric: tabular-nums; }
+
+  .cols th {
+    padding: 1.8mm 1.5mm;
+    background: #1b2152;
+    color: #fff;
+    font-size: 6.8pt;
+    font-weight: 700;
+    text-align: right;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    border: 0.4pt solid #1b2152;
+  }
+  td {
+    padding: 1.4mm 1.5mm;
+    border-bottom: 0.4pt solid #d9e0ea;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .cols th.left, td.left { text-align: left; }
+  tbody tr:nth-child(even) td { background: #f7f8fb; }
+  tbody tr.unpaid td:nth-child(2) { color: #93370d; font-weight: 600; }
+  .neg { color: #b42318; }
+  tr.total td { background: #e9ecf8; border-top: 1pt solid #1b2152; font-weight: 800; }
+  tr.reconcile td { background: #f4f6fb; font-weight: 600; }
+  tr.reconcile.result td { background: #e9ecf8; font-weight: 800; border-bottom: 1pt solid #1b2152; }
+
+  .notes { margin-top: 4mm; font-size: 7pt; line-height: 1.5; color: #475467; break-inside: avoid; }
+  .notes p { margin: 0 0 1mm; }
+</style>
+</head>
+<body>
+        <div class="lh">
+          <img src="${logoUrl}" alt="T.C. Kütahya Belediyesi logosu">
+          <div class="org">
+            <div class="tc">T.C.</div>
+            <div class="name">KÜTAHYA BELEDİYESİ</div>
+            <div class="title">EDS Ceza Gelirleri · Aylık Detay Raporu</div>
+          </div>
+          <div class="meta">
+            <div><strong>Kapsam:</strong> ${escape(scopeText)}</div>
+            <div><strong>Dönem:</strong> ${escape(periodText)}</div>
+            <div><strong>Rapor tarihi:</strong> ${escape(printedAt)}</div>
+            <div><strong>Kayıt:</strong> ${rows.length} ay</div>
+          </div>
+        </div>
+  <div class="summary-grid">
+    ${summary.map(([label, value, cls]) => `<div class="summary-item"><span>${label}</span><strong class="${cls}">${value}</strong></div>`).join("")}
+  </div>
+  <table class="report">
+    <thead>
+      <tr class="cols">
+        <th class="left">Ay</th>
+        <th class="left">Durum</th>
+        <th>Ödeme Tarihi</th>
+        <th>Ceza Adedi</th>
+        <th>İptal Adedi</th>
+        <th>Net Ceza Tutarı</th>
+        <th>Brüt Belediye Payı</th>
+        <th>Şirket Ücreti (KDV dahil)</th>
+        <th>Belediye Geliri</th>
+        <th>Telekom Gideri</th>
+        <th>Net Katkı</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${bodyRows}
+    </tbody>
+    <tfoot>
+      <tr class="total">
+        <td class="left">Toplam</td>
+        <td></td>
+        <td></td>
+        <td>${number.format(totals.totalCount)}</td>
+        <td>${number.format(totals.cancelledCount)}</td>
+        <td>${moneyDetail.format(totals.netPenalty)}</td>
+        <td>${moneyDetail.format(totals.grossMunicipal)}</td>
+        <td>${moneyDetail.format(totals.companyVat)}</td>
+        <td>${moneyDetail.format(totals.municipalIncome)}</td>
+        <td>${moneyDetail.format(totals.telecom)}</td>
+        <td class="${signClass(totals.netIncome)}">${moneyDetail.format(totals.netIncome)}</td>
+      </tr>${reconcile}
+    </tfoot>
+  </table>
+  <div class="notes">
+    <p><strong>Terimler:</strong> Brüt belediye payı net ceza tutarının %30'udur. Belediye geliri, brüt paydan şirket ücreti (KDV dahil) düşülerek; net katkı, belediye gelirinden Telekom gideri düşülerek; net kâr/zarar ise net katkıdan kurulum yatırımı düşülerek hesaplanır.</p>
+    <p><strong>Bilgilendirme:</strong> Haziran 2023 itibarıyla sistemin testlere başlaması, TSE onay işlemleri ve EGM'ye verilerin doğruluğunun sunulması için internet veri akışı başlatılmıştır; Haziran–Aralık 2023 dönemindeki Telekom giderlerinin nedeni budur.</p>
+  </div>
+</body>
+</html>`;
+
+      document.getElementById("printFrame")?.remove();
+      const frame = document.createElement("iframe");
+      frame.id = "printFrame";
+      frame.setAttribute("aria-hidden", "true");
+      frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+      document.body.appendChild(frame);
+      const doc = frame.contentDocument;
+      doc.open();
+      doc.write(html);
+      doc.close();
+
+      // Logo yüklenmeden yazdırılırsa antet boş çıkar.
+      const logo = doc.querySelector("img");
+      const go = () => {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+      };
+      if (logo.complete) go();
+      else {
+        logo.addEventListener("load", go, { once: true });
+        logo.addEventListener("error", go, { once: true });
+      }
+    }
+
     function setupSorting() {
       document.querySelectorAll(".sort-header").forEach(th => {
         th.style.cursor = "pointer";
@@ -2263,24 +2490,26 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
       });
     }
 
+    function sortForTable(rows) {
+      return [...rows].sort((a, b) => {
+        let valA = a[currentSort.key];
+        let valB = b[currentSort.key];
+
+        if (valA === undefined || valA === null) valA = currentSort.asc ? Infinity : -Infinity;
+        if (valB === undefined || valB === null) valB = currentSort.asc ? Infinity : -Infinity;
+
+        if (typeof valA === "string") {
+          return currentSort.asc ? valA.localeCompare(valB, "tr") : valB.localeCompare(valA, "tr");
+        }
+        return currentSort.asc ? valA - valB : valB - valA;
+      });
+    }
+
     function renderTable(rows) {
       const tbody = document.getElementById("detailRows");
       const tfoot = document.getElementById("detailTotals");
       
-      // Sort rows
-      const sortedRows = [...rows].sort((a, b) => {
-        let valA = a[currentSort.key];
-        let valB = b[currentSort.key];
-        
-        if (valA === undefined || valA === null) valA = currentSort.asc ? Infinity : -Infinity;
-        if (valB === undefined || valB === null) valB = currentSort.asc ? Infinity : -Infinity;
-        
-        if (typeof valA === "string") {
-          return currentSort.asc ? valA.localeCompare(valB, "tr") : valB.localeCompare(valA, "tr");
-        } else {
-          return currentSort.asc ? valA - valB : valB - valA;
-        }
-      });
+      const sortedRows = sortForTable(rows);
 
       tbody.innerHTML = sortedRows.map(r => `
         <tr class="${r.status === 'Ödenmedi' ? 'unpaid-row' : ''}">
@@ -2492,6 +2721,7 @@ Tem.26	3.659	₺12.593.422,00	₺3.778.026,60	23	₺74.627,00	₺22.388,10	₺12
 
     document.getElementById("exportCsv").addEventListener("click", exportToCsv);
     document.getElementById("exportExcel").addEventListener("click", exportToExcel);
+    document.getElementById("printReport").addEventListener("click", printReport);
 
     window.addEventListener("resize", () => {
       if (!document.getElementById("dashboardApp").classList.contains("is-locked")) render();
