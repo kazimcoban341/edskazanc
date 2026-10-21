@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <title>Ceza Gelirleri Dashboard</title>
   <style>
@@ -75,7 +76,9 @@
       gap: 12px;
     }
 
-    .login-copy h1 {
+    .login-copy h2 {
+      color: #fff;
+      font-weight: 760;
       margin: 0 0 12px;
       font-size: clamp(28px, 4vw, 42px);
       line-height: 1.08;
@@ -168,16 +171,6 @@
       box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
     }
 
-    .login-visual::before {
-      content: "";
-      position: absolute;
-      inset: 12%;
-      border: 1px solid rgba(255, 255, 255, .08);
-      background-image: linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px);
-      background-size: 34px 34px;
-      transform: rotate(-4deg);
-    }
-
     .login-stat {
       position: relative;
       max-width: 520px;
@@ -186,8 +179,7 @@
       padding: 24px;
       border: 1px solid rgba(255, 255, 255, .14);
       border-radius: 8px;
-      background: rgba(15, 23, 42, .72);
-      backdrop-filter: blur(10px);
+      background: #161b45;
     }
 
     .login-stat span {
@@ -273,9 +265,8 @@
       padding: 18px;
       border: 1px solid rgba(217, 226, 236, .8);
       border-radius: 8px;
-      background: rgba(255, 255, 255, .72);
+      background: #fff;
       box-shadow: var(--shadow);
-      backdrop-filter: blur(10px);
     }
 
     h1 {
@@ -423,7 +414,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      margin: 2px 0 -4px;
+      margin: 10px 0 -4px;
       color: #334155;
       font-size: 12px;
       font-weight: 800;
@@ -431,12 +422,6 @@
       text-transform: uppercase;
     }
 
-    .kpi-section-label::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: linear-gradient(90deg, #cbd5e1, rgba(203, 213, 225, 0));
-    }
 
     .kpis .card.col-3 {
       grid-column: span 3;
@@ -877,7 +862,7 @@
         </div>
       </div>
       <div class="login-copy">
-        <h1>Kurumsal performans paneli</h1>
+        <h2>Kurumsal performans paneli</h2>
         <p>Aylık ceza, tahsilat, belediye geliri ve operasyon performansını izlemek için oturum açın.</p>
       </div>
       <form class="login-form" id="loginForm" autocomplete="off">

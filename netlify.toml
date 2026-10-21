@@ -7,3 +7,5 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+    # Kurum içi pano: arama motorları ve AI tarayıcıları dizine eklemesin
+    X-Robots-Tag = "noindex, nofollow, noarchive"
