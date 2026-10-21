@@ -1104,19 +1104,7 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr>
-                <th class="sort-header" data-sort-key="sort">Ay</th>
-                <th class="sort-header" data-sort-key="status">Durum</th>
-                <th class="sort-header" data-sort-key="paymentDate">Ödeme Tarihi</th>
-                <th class="sort-header" data-sort-key="totalCount">Ceza Adedi</th>
-                <th class="sort-header" data-sort-key="cancelledCount">İptal Adedi</th>
-                <th class="sort-header" data-sort-key="netPenalty">Net Ceza Tutarı</th>
-                <th class="sort-header" data-sort-key="grossMunicipal">Brüt Belediye Payı</th>
-                <th class="sort-header" data-sort-key="companyVat">Şirket Ücreti (KDV dahil)</th>
-                <th class="sort-header" data-sort-key="municipalIncome">Belediye Geliri</th>
-                <th class="sort-header" data-sort-key="telecom">Telekom Gideri</th>
-                <th class="sort-header" data-sort-key="netIncome">Net Katkı</th>
-              </tr>
+              <tr id="detailHead"></tr>
             </thead>
             <tbody id="detailRows"></tbody>
             <tfoot id="detailTotals"></tfoot>
@@ -1222,9 +1210,10 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
     const data = parseRows(rawData);
     const hasOperationalData = row => row.totalCount || row.netPenalty || row.grossMunicipal || row.municipalIncome;
     const money = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const moneyDetail = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", minimumFractionDigits: 2 });
     const number = new Intl.NumberFormat("tr-TR");
-    const COMPANY_PAID_THROUGH_SORT = 2024 * 12 + monthMap["Eyl"];
+    // Şirket ücreti, belediye payı ödenen dönemlerle birlikte ödenir; sınır en son ödenen dönemden türetilir.
+    const LAST_PAID_ROW = data.filter(r => r.status === "Ödendi").sort((a, b) => b.sort - a.sort)[0];
+    const COMPANY_PAID_THROUGH_SORT = LAST_PAID_ROW ? LAST_PAID_ROW.sort : -Infinity;
     const INVESTMENT_COST = 37601951.98;
     const INVESTMENT_YEAR = 2023;
     const fullMonthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
@@ -1405,61 +1394,38 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
       asc: true
     };
 
-    function animateValue(id, start, end, duration, formatter) {
+    // Her KPI için tek bir animasyon döngüsü: yeni değer gelince öncekini iptal et, yoksa iki döngü aynı karta yazar.
+    const activeAnimations = new Map();
+
+    function animateText(id, start, end, duration, format) {
       const obj = document.getElementById(id);
       if (!obj) return;
+      cancelAnimationFrame(activeAnimations.get(id));
       let startTimestamp = null;
       const step = (timestamp) => {
         if (!startTimestamp) startTimestamp = timestamp;
         const progress = Math.min((timestamp - startTimestamp) / duration, 1);
         const ease = progress * (2 - progress);
-        const currentVal = start + ease * (end - start);
-        obj.textContent = formatter.format(currentVal);
+        obj.textContent = format(progress < 1 ? start + ease * (end - start) : end);
         if (progress < 1) {
-          window.requestAnimationFrame(step);
+          activeAnimations.set(id, requestAnimationFrame(step));
         } else {
-          obj.textContent = formatter.format(end);
+          activeAnimations.delete(id);
         }
       };
-      window.requestAnimationFrame(step);
+      activeAnimations.set(id, requestAnimationFrame(step));
+    }
+
+    function animateValue(id, start, end, duration, formatter) {
+      animateText(id, start, end, duration, value => formatter.format(value));
     }
 
     function animateNumber(id, start, end, duration) {
-      const obj = document.getElementById(id);
-      if (!obj) return;
-      let startTimestamp = null;
-      const step = (timestamp) => {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-        const ease = progress * (2 - progress);
-        const currentVal = start + ease * (end - start);
-        obj.textContent = number.format(Math.round(currentVal));
-        if (progress < 1) {
-          window.requestAnimationFrame(step);
-        } else {
-          obj.textContent = number.format(end);
-        }
-      };
-      window.requestAnimationFrame(step);
+      animateText(id, start, end, duration, value => number.format(Math.round(value)));
     }
 
     function animatePercentage(id, start, end, duration) {
-      const obj = document.getElementById(id);
-      if (!obj) return;
-      let startTimestamp = null;
-      const step = (timestamp) => {
-        if (!startTimestamp) startTimestamp = timestamp;
-        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-        const ease = progress * (2 - progress);
-        const currentVal = start + ease * (end - start);
-        obj.textContent = `%${decimal(currentVal)}`;
-        if (progress < 1) {
-          window.requestAnimationFrame(step);
-        } else {
-          obj.textContent = `%${decimal(end)}`;
-        }
-      };
-      window.requestAnimationFrame(step);
+      animateText(id, start, end, duration, value => `%${decimal(value)}`);
     }
 
     function drawLineChart(rows) {
@@ -1997,68 +1963,70 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
       });
     }
 
-    function exportToCsv() {
-      const rows = selectedRows();
-      const csvHeaders = ["Ay", "Durum", "Ödeme Tarihi", "Ceza Adedi", "İptal Adedi", "Net Ceza Tutarı", "Brüt Belediye Payı", "Şirket Ücreti (KDV dahil)", "Belediye Geliri", "Telekom Gideri", "Net Katkı"];
-      
-      const csvRows = [
-        csvHeaders.join(";"),
-        ...rows.map(r => [
-          r.label,
-          r.status,
-          r.paymentDate || "",
-          r.totalCount,
-          r.cancelledCount,
-          r.netPenalty,
-          r.grossMunicipal,
-          r.companyVat,
-          r.municipalIncome,
-          r.telecom,
-          r.netIncome
-        ].join(";"))
-      ];
-      
-      const csvContent = "\uFEFF" + csvRows.join("\n");
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    // Aylık detay sütunları: ekrandaki tablo, CSV, Excel ve yazdırma çıktısı bu listeden üretilir.
+    const DETAIL_COLUMNS = [
+      { key: "label", sortKey: "sort", label: "Ay", type: "text", align: "left" },
+      { key: "status", label: "Durum", type: "text", align: "left" },
+      { key: "paymentDate", label: "Ödeme Tarihi", type: "text" },
+      { key: "totalCount", label: "Ceza Adedi", type: "count" },
+      { key: "cancelledCount", label: "İptal Adedi", type: "count" },
+      { key: "netPenalty", label: "Net Ceza Tutarı", type: "money" },
+      { key: "grossMunicipal", label: "Brüt Belediye Payı", type: "money" },
+      { key: "companyVat", label: "Şirket Ücreti (KDV dahil)", type: "money" },
+      { key: "municipalIncome", label: "Belediye Geliri", type: "money" },
+      { key: "telecom", label: "Telekom Gideri", type: "money", showZero: true },
+      { key: "netIncome", label: "Net Katkı", type: "money", showZero: true, signed: true }
+    ];
+
+    // Boş değerler ekranda ve çıktıda "empty" ile gösterilir; Telekom ve net katkıda sıfır da anlamlıdır.
+    function formatDetail(column, value, empty) {
+      if (column.type === "text") return value || empty;
+      if (!value && !column.showZero) return empty;
+      return (column.type === "count" ? number : money).format(value);
+    }
+
+    function detailTotals(rows) {
+      return Object.fromEntries(DETAIL_COLUMNS.filter(c => c.type !== "text").map(c => [c.key, sum(rows, c.key)]));
+    }
+
+    function renderDetailHead() {
+      document.getElementById("detailHead").innerHTML = DETAIL_COLUMNS
+        .map(c => `<th class="sort-header" data-sort-key="${c.sortKey || c.key}">${c.label}</th>`).join("");
+    }
+
+    function downloadBlob(blob, filename) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `EDS_Gelir_Raporu_${new Date().toISOString().slice(0,10)}.csv`);
+      link.href = url;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+
+    const exportFileName = ext => `EDS_Gelir_Raporu_${new Date().toISOString().slice(0, 10)}.${ext}`;
+
+    function exportToCsv() {
+      // ";" ayraçlı CSV'yi Türkçe Excel açar; ondalık ayracı da virgül olmalı, binlik ayracı olmamalı.
+      const csvNumber = value => value.toLocaleString("tr-TR", { useGrouping: false, maximumFractionDigits: 2 });
+      const csvRows = [
+        DETAIL_COLUMNS.map(c => c.label).join(";"),
+        ...selectedRows().map(r => DETAIL_COLUMNS.map(c => c.type === "text" ? (r[c.key] || "") : csvNumber(r[c.key])).join(";"))
+      ];
+      downloadBlob(new Blob(["\uFEFF" + csvRows.join("\n")], { type: "text/csv;charset=utf-8;" }), exportFileName("csv"));
     }
 
     function exportToExcel() {
-      const rows = selectedRows();
-      const headers = ["Ay", "Durum", "Ödeme Tarihi", "Ceza Adedi", "İptal Adedi", "Net Ceza Tutarı", "Brüt Belediye Payı", "Şirket Ücreti (KDV dahil)", "Belediye Geliri", "Telekom Gideri", "Net Katkı"];
-      
-      const data = [
-        headers,
-        ...rows.map(r => [
-          r.label,
-          r.status,
-          r.paymentDate || "",
-          r.totalCount,
-          r.cancelledCount,
-          r.netPenalty,
-          r.grossMunicipal,
-          r.companyVat,
-          r.municipalIncome,
-          r.telecom,
-          r.netIncome
-        ])
+      const sheetRows = [
+        DETAIL_COLUMNS.map(c => c.label),
+        ...selectedRows().map(r => DETAIL_COLUMNS.map(c => c.type === "text" ? (r[c.key] || "") : r[c.key]))
       ];
-      
       const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      
-      // Auto-fit column widths (rough estimate based on header lengths)
-      const wscols = headers.map(h => ({ wch: Math.max(h.length + 4, 12) }));
-      ws['!cols'] = wscols;
-      
+      const ws = XLSX.utils.aoa_to_sheet(sheetRows);
+      ws["!cols"] = DETAIL_COLUMNS.map(c => ({ wch: Math.max(c.label.length + 4, 12) }));
       XLSX.utils.book_append_sheet(wb, ws, "EDS Gelir Raporu");
-      XLSX.writeFile(wb, `EDS_Gelir_Raporu_${new Date().toISOString().slice(0,10)}.xlsx`);
+      XLSX.writeFile(wb, exportFileName("xlsx"));
     }
 
     // Aylık detayı kurumsal antetli A4 yatay sayfa olarak yazdırır; tarayıcının yazdırma penceresinden PDF de alınabilir.
@@ -2066,7 +2034,6 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
       const rows = selectedRows();
       const sortedRows = sortForTable(rows);
       const escape = text => String(text).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
-      const cell = (value, formatter = moneyDetail) => value ? formatter.format(value) : "–";
       const now = new Date();
       const printedAt = now.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" })
         + " " + now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
@@ -2079,16 +2046,7 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
       const investment = includeInvestment ? INVESTMENT_COST : 0;
       const paidRows = rows.filter(r => r.status === "Ödendi");
       const unpaidRows = rows.filter(r => r.status === "Ödenmedi");
-      const totals = {
-        totalCount: sum(rows, "totalCount"),
-        cancelledCount: sum(rows, "cancelledCount"),
-        netPenalty: sum(rows, "netPenalty"),
-        grossMunicipal: sum(rows, "grossMunicipal"),
-        companyVat: sum(rows, "companyVat"),
-        municipalIncome: sum(rows, "municipalIncome"),
-        telecom: sum(rows, "telecom"),
-        netIncome: sum(rows, "netIncome")
-      };
+      const totals = detailTotals(rows);
       const expectedNet = totals.netIncome - investment;
       const actualNet = sum(paidRows, "municipalIncome") - totals.telecom - investment;
       const municipalTotal = sum(paidRows, "municipalIncome") + sum(unpaidRows, "municipalIncome");
@@ -2102,24 +2060,19 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
         ["Bekleyen belediye geliri", money.format(sum(unpaidRows, "municipalIncome")), ""]
       ];
 
+      const printCell = (c, r) => {
+        const classes = [c.align === "left" ? "left" : "", c.signed ? signClass(r[c.key]) : ""].filter(Boolean).join(" ");
+        return `<td${classes ? ` class="${classes}"` : ""}>${escape(formatDetail(c, r[c.key], "–"))}</td>`;
+      };
       const bodyRows = sortedRows.map(r => `
-        <tr class="${r.status === "Ödenmedi" ? "unpaid" : ""}">
-          <td class="left">${escape(r.label)}</td>
-          <td class="left">${escape(r.status)}</td>
-          <td>${escape(r.paymentDate || "–")}</td>
-          <td>${cell(r.totalCount, number)}</td>
-          <td>${cell(r.cancelledCount, number)}</td>
-          <td>${cell(r.netPenalty)}</td>
-          <td>${cell(r.grossMunicipal)}</td>
-          <td>${cell(r.companyVat)}</td>
-          <td>${cell(r.municipalIncome)}</td>
-          <td>${moneyDetail.format(r.telecom)}</td>
-          <td class="${signClass(r.netIncome)}">${moneyDetail.format(r.netIncome)}</td>
-        </tr>`).join("");
+        <tr class="${r.status === "Ödenmedi" ? "unpaid" : ""}">${DETAIL_COLUMNS.map(c => printCell(c, r)).join("")}</tr>`).join("");
+      const totalCells = DETAIL_COLUMNS.map((c, i) => i === 0 ? `<td class="left">Toplam</td>`
+        : c.type === "text" ? "<td></td>"
+        : `<td class="${c.signed ? signClass(totals[c.key]) : ""}">${(c.type === "count" ? number : money).format(totals[c.key])}</td>`).join("");
 
       const reconcile = includeInvestment ? `
-          <tr class="reconcile"><td class="left" colspan="10">− Yatırım maliyeti (kurulum)</td><td class="neg">${moneyDetail.format(-INVESTMENT_COST)}</td></tr>
-          <tr class="reconcile result"><td class="left" colspan="10">= Net kâr/zarar (Beklenen)</td><td class="${signClass(expectedNet)}">${moneyDetail.format(expectedNet)}</td></tr>` : "";
+          <tr class="reconcile"><td class="left" colspan="${DETAIL_COLUMNS.length - 1}">− Yatırım maliyeti (kurulum)</td><td class="neg">${money.format(-INVESTMENT_COST)}</td></tr>
+          <tr class="reconcile result"><td class="left" colspan="${DETAIL_COLUMNS.length - 1}">= Net kâr/zarar (Beklenen)</td><td class="${signClass(expectedNet)}">${money.format(expectedNet)}</td></tr>` : "";
 
       const html = `<!doctype html>
 <html lang="tr">
@@ -2220,37 +2173,13 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
   </div>
   <table class="report">
     <thead>
-      <tr class="cols">
-        <th class="left">Ay</th>
-        <th class="left">Durum</th>
-        <th>Ödeme Tarihi</th>
-        <th>Ceza Adedi</th>
-        <th>İptal Adedi</th>
-        <th>Net Ceza Tutarı</th>
-        <th>Brüt Belediye Payı</th>
-        <th>Şirket Ücreti (KDV dahil)</th>
-        <th>Belediye Geliri</th>
-        <th>Telekom Gideri</th>
-        <th>Net Katkı</th>
-      </tr>
+      <tr class="cols">${DETAIL_COLUMNS.map(c => `<th${c.align === "left" ? ` class="left"` : ""}>${c.label}</th>`).join("")}</tr>
     </thead>
     <tbody>
       ${bodyRows}
     </tbody>
     <tfoot>
-      <tr class="total">
-        <td class="left">Toplam</td>
-        <td></td>
-        <td></td>
-        <td>${number.format(totals.totalCount)}</td>
-        <td>${number.format(totals.cancelledCount)}</td>
-        <td>${moneyDetail.format(totals.netPenalty)}</td>
-        <td>${moneyDetail.format(totals.grossMunicipal)}</td>
-        <td>${moneyDetail.format(totals.companyVat)}</td>
-        <td>${moneyDetail.format(totals.municipalIncome)}</td>
-        <td>${moneyDetail.format(totals.telecom)}</td>
-        <td class="${signClass(totals.netIncome)}">${moneyDetail.format(totals.netIncome)}</td>
-      </tr>${reconcile}
+      <tr class="total">${totalCells}</tr>${reconcile}
     </tfoot>
   </table>
   <div class="notes">
@@ -2285,6 +2214,7 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
     }
 
     function setupSorting() {
+      renderDetailHead();
       document.querySelectorAll(".sort-header").forEach(th => {
         th.style.cursor = "pointer";
         th.addEventListener("click", () => {
@@ -2311,190 +2241,101 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
       }
     }
 
+    // Bir grafiğin ipucunu bağlar; locate fareye göre { html, x, top } ya da gizlemek için null döndürür.
+    function bindTooltip(canvasId, locate) {
+      const canvas = document.getElementById(canvasId);
+      const tooltip = document.getElementById(`${canvasId}Tooltip`);
+      const hide = () => { tooltip.style.opacity = "0"; };
+      canvas.addEventListener("mousemove", event => {
+        if (!canvas.chartData || !canvas.chartScale) return hide();
+        const rect = canvas.getBoundingClientRect();
+        const hit = locate({ x: event.clientX - rect.left, y: event.clientY - rect.top, rect, data: canvas.chartData, scale: canvas.chartScale });
+        if (!hit) return hide();
+        tooltip.innerHTML = hit.html;
+        tooltip.style.opacity = "1";
+        const tip = tooltip.getBoundingClientRect();
+        tooltip.style.left = `${Math.min(rect.width - tip.width, Math.max(0, hit.x - tip.width / 2))}px`;
+        tooltip.style.top = `${typeof hit.top === "function" ? hit.top(tip) : hit.top}px`;
+      });
+      canvas.addEventListener("mouseleave", hide);
+    }
+
     function setupChartEvents() {
-      // trendChart Tooltip
-      const trendCanvas = document.getElementById("trendChart");
-      const trendTooltip = document.getElementById("trendChartTooltip");
-      trendCanvas.addEventListener("mousemove", (e) => {
-        const rows = trendCanvas.chartData;
-        const scale = trendCanvas.chartScale;
-        if (!rows || !scale) return;
-        
-        const rect = trendCanvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        
-        const w = rect.width;
-        const h = rect.height;
-        const pad = scale.pad;
-        const min = scale.min;
-        const max = scale.max;
-        
-        const x = i => pad.left + ((w - pad.left - pad.right) / Math.max(rows.length - 1, 1)) * i;
-        const y = v => pad.top + (max - v) / (max - min || 1) * (h - pad.top - pad.bottom);
-        
-        let closestIdx = -1;
+      bindTooltip("trendChart", ({ x: mouseX, y: mouseY, rect, data: rows, scale }) => {
+        const { pad, min, max } = scale;
+        const x = i => pad.left + ((rect.width - pad.left - pad.right) / Math.max(rows.length - 1, 1)) * i;
+        const y = v => pad.top + (max - v) / (max - min || 1) * (rect.height - pad.top - pad.bottom);
+        let closest = -1;
         let minDistance = Infinity;
-        
-        for (let i = 0; i < rows.length; i++) {
-          const px = x(i);
-          const py = y(rows[i].netIncome);
-          const dist = Math.sqrt((mouseX - px)**2 + (mouseY - py)**2);
-          if (dist < minDistance) {
-            minDistance = dist;
-            closestIdx = i;
-          }
-        }
-        
-        if (closestIdx !== -1 && minDistance < 24) {
-          const row = rows[closestIdx];
-          trendTooltip.style.opacity = "1";
-          trendTooltip.innerHTML = `<strong>${row.label}</strong><br/>Net katkı: <span style="color:${row.netIncome >= 0 ? '#10b981' : '#f43f5e'}; font-weight:bold;">${money.format(row.netIncome)}</span>`;
-          const tooltipRect = trendTooltip.getBoundingClientRect();
-          trendTooltip.style.left = `${Math.min(rect.width - tooltipRect.width, Math.max(0, x(closestIdx) - tooltipRect.width / 2))}px`;
-          trendTooltip.style.top = `${Math.max(10, y(row.netIncome) - tooltipRect.height - 12)}px`;
-        } else {
-          trendTooltip.style.opacity = "0";
-        }
+        rows.forEach((row, i) => {
+          const dist = Math.hypot(mouseX - x(i), mouseY - y(row.netIncome));
+          if (dist < minDistance) { minDistance = dist; closest = i; }
+        });
+        if (closest === -1 || minDistance >= 24) return null;
+        const row = rows[closest];
+        return {
+          html: `<strong>${row.label}</strong><br/>Net katkı: <span style="color:${row.netIncome >= 0 ? "#10b981" : "#f43f5e"}; font-weight:bold;">${money.format(row.netIncome)}</span>`,
+          x: x(closest),
+          top: tip => Math.max(10, y(row.netIncome) - tip.height - 12)
+        };
       });
-      trendCanvas.addEventListener("mouseleave", () => {
-        trendTooltip.style.opacity = "0";
-      });
-      
-      // volumeChart Tooltip
-      const volumeCanvas = document.getElementById("volumeChart");
-      const volumeTooltip = document.getElementById("volumeChartTooltip");
-      volumeCanvas.addEventListener("mousemove", (e) => {
-        const rows = volumeCanvas.chartData;
-        const scale = volumeCanvas.chartScale;
-        if (!rows || !scale) return;
-        
-        const rect = volumeCanvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        
-        const w = rect.width;
-        const pad = scale.pad;
-        
-        const band = (w - pad.left - pad.right) / Math.max(rows.length, 1);
+
+      bindTooltip("volumeChart", ({ x: mouseX, rect, data: rows, scale: { pad } }) => {
+        const band = (rect.width - pad.left - pad.right) / Math.max(rows.length, 1);
         const idx = Math.floor((mouseX - pad.left) / band);
-        
-        if (idx >= 0 && idx < rows.length) {
-          const row = rows[idx];
-          volumeTooltip.style.opacity = "1";
-          volumeTooltip.innerHTML = `<strong>${row.label}</strong><br/>Ceza: <strong>${number.format(row.totalCount)} adet</strong><br/>İptal: <strong>${number.format(row.cancelledCount)} adet</strong> (%${decimal(row.totalCount > 0 ? row.cancelledCount / row.totalCount * 100 : 0)})`;
-          const tooltipRect = volumeTooltip.getBoundingClientRect();
-          volumeTooltip.style.left = `${Math.min(rect.width - tooltipRect.width, Math.max(0, pad.left + idx * band + band / 2 - tooltipRect.width / 2))}px`;
-          volumeTooltip.style.top = `${rect.height - pad.bottom - tooltipRect.height - 10}px`;
-        } else {
-          volumeTooltip.style.opacity = "0";
-        }
-      });
-      volumeCanvas.addEventListener("mouseleave", () => {
-        volumeTooltip.style.opacity = "0";
-      });
-      
-      // yoyChart Tooltip
-      const yoyCanvas = document.getElementById("yoyChart");
-      const yoyTooltip = document.getElementById("yoyChartTooltip");
-      yoyCanvas.addEventListener("mousemove", (e) => {
-        const yoyData = yoyCanvas.chartData;
-        const scale = yoyCanvas.chartScale;
-        if (!yoyData || !scale) return;
-        
-        const rect = yoyCanvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        
-        const w = rect.width;
-        const pad = scale.pad;
-        
-        const step = (w - pad.left - pad.right) / 11;
-        const m = Math.round((mouseX - pad.left) / step);
-        
-        if (m >= 0 && m < 12) {
-          yoyTooltip.style.opacity = "1";
-          let html = `<strong>${fullMonthNames[m]} sonu itibarıyla</strong><br/>`;
-          let hasAny = false;
-          scale.years.forEach(yr => {
-            const val = yoyData[yr][m];
-            if (val !== null) {
-              hasAny = true;
-              html += `<span style="color:${scale.yearColors[yr]}">●</span> ${yr}: <strong>${money.format(val)}</strong><br/>`;
-            }
-          });
-          if (hasAny) {
-            yoyTooltip.innerHTML = html;
-            const tooltipRect = yoyTooltip.getBoundingClientRect();
-            yoyTooltip.style.left = `${Math.min(rect.width - tooltipRect.width, Math.max(0, pad.left + m * step - tooltipRect.width / 2))}px`;
-            yoyTooltip.style.top = `${pad.top + 10}px`;
-          } else {
-            yoyTooltip.style.opacity = "0";
-          }
-        } else {
-          yoyTooltip.style.opacity = "0";
-        }
-      });
-      yoyCanvas.addEventListener("mouseleave", () => {
-        yoyTooltip.style.opacity = "0";
+        if (idx < 0 || idx >= rows.length) return null;
+        const row = rows[idx];
+        return {
+          html: `<strong>${row.label}</strong><br/>Ceza: <strong>${number.format(row.totalCount)} adet</strong><br/>İptal: <strong>${number.format(row.cancelledCount)} adet</strong> (%${decimal(row.totalCount > 0 ? row.cancelledCount / row.totalCount * 100 : 0)})`,
+          x: pad.left + idx * band + band / 2,
+          top: tip => rect.height - pad.bottom - tip.height - 10
+        };
       });
 
-      // bridgeChart Tooltip
-      const bridgeCanvas = document.getElementById("bridgeChart");
-      const bridgeTooltip = document.getElementById("bridgeChartTooltip");
-      bridgeCanvas.addEventListener("mousemove", (e) => {
-        const items = bridgeCanvas.chartData;
-        const scale = bridgeCanvas.chartScale;
-        if (!items || !scale) return;
-        const rect = bridgeCanvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
+      bindTooltip("yoyChart", ({ x: mouseX, rect, data: yoyData, scale }) => {
+        const step = (rect.width - scale.pad.left - scale.pad.right) / 11;
+        const m = Math.round((mouseX - scale.pad.left) / step);
+        if (m < 0 || m >= 12) return null;
+        const lines = scale.years.filter(yr => yoyData[yr][m] !== null)
+          .map(yr => `<span style="color:${scale.yearColors[yr]}">●</span> ${yr}: <strong>${money.format(yoyData[yr][m])}</strong><br/>`);
+        if (!lines.length) return null;
+        return { html: `<strong>${fullMonthNames[m]} sonu itibarıyla</strong><br/>${lines.join("")}`, x: scale.pad.left + m * step, top: scale.pad.top + 10 };
+      });
+
+      bindTooltip("bridgeChart", ({ x: mouseX, data: items, scale }) => {
         const index = Math.floor((mouseX - scale.pad.left) / scale.band);
-        if (index >= 0 && index < items.length) {
-          const item = items[index];
-          bridgeTooltip.style.opacity = "1";
-          bridgeTooltip.innerHTML = `<strong>${item.shortLabel}</strong><br/>${item.type === "delta" ? "Net etki" : "Ara toplam"}: <strong>${money.format(item.value)}</strong>`;
-          const tooltipRect = bridgeTooltip.getBoundingClientRect();
-          const center = scale.pad.left + scale.band * index + scale.band / 2;
-          bridgeTooltip.style.left = `${Math.min(rect.width - tooltipRect.width, Math.max(0, center - tooltipRect.width / 2))}px`;
-          bridgeTooltip.style.top = "12px";
-        } else {
-          bridgeTooltip.style.opacity = "0";
-        }
-      });
-      bridgeCanvas.addEventListener("mouseleave", () => {
-        bridgeTooltip.style.opacity = "0";
+        if (index < 0 || index >= items.length) return null;
+        const item = items[index];
+        return {
+          html: `<strong>${item.shortLabel}</strong><br/>${item.type === "delta" ? "Net etki" : "Ara toplam"}: <strong>${money.format(item.value)}</strong>`,
+          x: scale.pad.left + scale.band * index + scale.band / 2,
+          top: 12
+        };
       });
 
-      // breakEvenChart Tooltip
-      const breakEvenCanvas = document.getElementById("breakEvenChart");
-      const breakEvenTooltip = document.getElementById("breakEvenChartTooltip");
-      breakEvenCanvas.addEventListener("mousemove", (e) => {
-        const points = breakEvenCanvas.chartData;
-        const scale = breakEvenCanvas.chartScale;
-        if (!points || !scale) return;
-        const rect = breakEvenCanvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
+      bindTooltip("breakEvenChart", ({ x: mouseX, rect, data: points, scale }) => {
         const plotWidth = rect.width - scale.pad.left - scale.pad.right;
-        const index = Math.round((mouseX - scale.pad.left) / plotWidth * Math.max(points.length - 1, 1));
-        if (index >= 0 && index < points.length) {
-          const point = points[index];
-          breakEvenTooltip.style.opacity = "1";
-          breakEvenTooltip.innerHTML = `<strong>${point.label}</strong><br/>Beklenen net kâr/zarar: <strong>${money.format(point.expected)}</strong><br/>Tahsilat bazlı net kâr/zarar: <strong>${money.format(point.actual)}</strong>`;
-          const tooltipRect = breakEvenTooltip.getBoundingClientRect();
-          const center = scale.pad.left + plotWidth / Math.max(points.length - 1, 1) * index;
-          breakEvenTooltip.style.left = `${Math.min(rect.width - tooltipRect.width, Math.max(0, center - tooltipRect.width / 2))}px`;
-          breakEvenTooltip.style.top = "12px";
-        } else {
-          breakEvenTooltip.style.opacity = "0";
-        }
-      });
-      breakEvenCanvas.addEventListener("mouseleave", () => {
-        breakEvenTooltip.style.opacity = "0";
+        const stepWidth = plotWidth / Math.max(points.length - 1, 1);
+        const index = Math.round((mouseX - scale.pad.left) / stepWidth);
+        if (index < 0 || index >= points.length) return null;
+        const point = points[index];
+        return {
+          html: `<strong>${point.label}</strong><br/>Beklenen net kâr/zarar: <strong>${money.format(point.expected)}</strong><br/>Tahsilat bazlı net kâr/zarar: <strong>${money.format(point.actual)}</strong>`,
+          x: scale.pad.left + stepWidth * index,
+          top: 12
+        };
       });
     }
 
     function sortForTable(rows) {
+      // "dd.mm.yyyy" metin olarak sıralanırsa gün numarasına göre dizilir; tarihe çevirerek karşılaştır.
+      const sortValue = row => currentSort.key === "paymentDate"
+        ? parsePaymentDate(row.paymentDate)?.getTime() ?? null
+        : row[currentSort.key];
       return [...rows].sort((a, b) => {
-        let valA = a[currentSort.key];
-        let valB = b[currentSort.key];
+        let valA = sortValue(a);
+        let valB = sortValue(b);
+        if (valA === null && valB === null) return 0;
 
         if (valA === undefined || valA === null) valA = currentSort.asc ? Infinity : -Infinity;
         if (valB === undefined || valB === null) valB = currentSort.asc ? Infinity : -Infinity;
@@ -2512,47 +2353,25 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
       
       const sortedRows = sortForTable(rows);
 
-      tbody.innerHTML = sortedRows.map(r => `
-        <tr class="${r.status === 'Ödenmedi' ? 'unpaid-row' : ''}">
-          <td>${r.label}</td>
-          <td><span class="pill ${r.status === 'Ödendi' ? 'paid' : r.status === 'Ödenmedi' ? 'unpaid' : 'none'}">${r.status}</span></td>
-          <td>${r.paymentDate || "-"}</td>
-          <td>${r.totalCount ? number.format(r.totalCount) : "-"}</td>
-          <td>${r.cancelledCount ? number.format(r.cancelledCount) : "-"}</td>
-          <td>${r.netPenalty ? moneyDetail.format(r.netPenalty) : "-"}</td>
-          <td>${r.grossMunicipal ? moneyDetail.format(r.grossMunicipal) : "-"}</td>
-          <td>${r.companyVat ? moneyDetail.format(r.companyVat) : "-"}</td>
-          <td>${r.municipalIncome ? moneyDetail.format(r.municipalIncome) : "-"}</td>
-          <td>${moneyDetail.format(r.telecom)}</td>
-          <td class="${r.netIncome < 0 ? 'negative-money' : 'positive-money'}">${moneyDetail.format(r.netIncome)}</td>
-        </tr>
-      `).join("");
-
-      const totals = {
-        totalCount: sum(rows, "totalCount"),
-        cancelledCount: sum(rows, "cancelledCount"),
-        netPenalty: sum(rows, "netPenalty"),
-        grossMunicipal: sum(rows, "grossMunicipal"),
-        companyVat: sum(rows, "companyVat"),
-        municipalIncome: sum(rows, "municipalIncome"),
-        telecom: sum(rows, "telecom"),
-        netIncome: sum(rows, "netIncome")
+      const screenCell = (c, r) => {
+        if (c.key === "status") {
+          const tone = r.status === "Ödendi" ? "paid" : r.status === "Ödenmedi" ? "unpaid" : "none";
+          return `<td><span class="pill ${tone}">${r.status}</span></td>`;
+        }
+        const signClass = c.signed ? ` class="${r[c.key] < 0 ? "negative-money" : "positive-money"}"` : "";
+        return `<td${signClass}>${formatDetail(c, r[c.key], "-")}</td>`;
       };
+      tbody.innerHTML = sortedRows.map(r => `
+        <tr class="${r.status === "Ödenmedi" ? "unpaid-row" : ""}">${DETAIL_COLUMNS.map(c => screenCell(c, r)).join("")}</tr>`).join("");
 
-      tfoot.innerHTML = `
-        <tr>
-          <td>Toplam</td>
-          <td>-</td>
-          <td>-</td>
-          <td>${number.format(totals.totalCount)}</td>
-          <td>${number.format(totals.cancelledCount)}</td>
-          <td>${moneyDetail.format(totals.netPenalty)}</td>
-          <td>${moneyDetail.format(totals.grossMunicipal)}</td>
-          <td>${moneyDetail.format(totals.companyVat)}</td>
-          <td>${moneyDetail.format(totals.municipalIncome)}</td>
-          <td>${moneyDetail.format(totals.telecom)}</td>
-          <td class="${totals.netIncome < 0 ? 'negative-money' : 'positive-money'}">${moneyDetail.format(totals.netIncome)}</td>
-        </tr>${reconcileRows(totals.netIncome)}`;
+      const totals = detailTotals(rows);
+      const totalCells = DETAIL_COLUMNS.map((c, i) => {
+        if (i === 0) return "<td>Toplam</td>";
+        if (c.type === "text") return "<td>-</td>";
+        const signClass = c.signed ? ` class="${totals[c.key] < 0 ? "negative-money" : "positive-money"}"` : "";
+        return `<td${signClass}>${(c.type === "count" ? number : money).format(totals[c.key])}</td>`;
+      }).join("");
+      tfoot.innerHTML = `<tr>${totalCells}</tr>${reconcileRows(totals.netIncome)}`;
       document.getElementById("rowCount").textContent = `${rows.length} ay listeleniyor`;
     }
 
@@ -2560,15 +2379,15 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
     function reconcileRows(netTotal) {
       if (!includesInvestment(selectedYear)) return "";
       const result = netTotal - INVESTMENT_COST;
-      const blank = "<td></td>".repeat(9);
+      const blank = "<td></td>".repeat(DETAIL_COLUMNS.length - 2);
       return `
         <tr class="reconcile">
           <td>− Yatırım maliyeti (kurulum)</td>${blank}
-          <td class="negative-money">${moneyDetail.format(-INVESTMENT_COST)}</td>
+          <td class="negative-money">${money.format(-INVESTMENT_COST)}</td>
         </tr>
         <tr class="reconcile is-result">
           <td>= Net kâr/zarar (Beklenen)</td>${blank}
-          <td class="${result < 0 ? 'negative-money' : 'positive-money'}">${moneyDetail.format(result)}</td>
+          <td class="${result < 0 ? 'negative-money' : 'positive-money'}">${money.format(result)}</td>
         </tr>`;
     }
 
@@ -2610,6 +2429,15 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
       const actualText = actualPoint ? `tahsilat bazlı başabaş ${periodName(actualPoint.row)}` : `tahsilat bazlı başabaşa henüz ulaşılamamıştır (son durum ${moneyMillions(last.actual)}); ${cashText}`;
       document.getElementById("breakEvenExplanation").innerHTML =
         `<strong>Nasıl okunur:</strong> Çizgiler yatırım maliyetiyle (${moneyMillions(-INVESTMENT_COST)}) başlar ve her ayın sonucunu ekleyerek ilerler. Düz çizgi tahsil edilmemiş gelirler dahil beklenen sonucu, kesikli çizgi yalnızca tahsil edilen gelirlerle oluşan sonucu gösterir. ${expectedText}; ${actualText}.`;
+    }
+
+    // Tuval grafikleri genişliğe bağlıdır; boyut değişince yalnızca bunlar yeniden çizilir.
+    function drawCharts(rows) {
+      drawLineChart(rows);
+      drawVolumeChart(rows.filter(hasOperationalData));
+      drawFinancialBridge(rows);
+      drawBreakEvenChart();
+      drawYoYChart();
     }
 
     function render() {
@@ -2686,7 +2514,7 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
       document.getElementById("kpiCompanyVatNote").textContent = !companyVal
         ? "Seçili dönemde şirket ücreti yok"
         : companyPaidVal
-          ? `Ödenen ${moneyMillions(companyPaidVal)} (Eylül 2024'e kadar) · kalan ${moneyMillions(companyVal - companyPaidVal)}`
+          ? `Ödenen ${moneyMillions(companyPaidVal)} (${periodName(LAST_PAID_ROW)} dönemi dahil) · kalan ${moneyMillions(companyVal - companyPaidVal)}`
           : "Bu dönem için şirkete henüz ödeme yapılmadı";
       setDelta("kpiCountDelta", sum(operationalRows, "totalCount"), sum(compareRows, "totalCount"), number);
       setCostDelta("kpiCompanyVatDelta", companyVal, sum(compareRows, "companyVat"));
@@ -2706,12 +2534,8 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
         telecom: telecomVal
       };
 
-      drawLineChart(rows);
       drawStatusChart(rows);
-      drawVolumeChart(operationalRows);
-      drawFinancialBridge(rows);
-      drawBreakEvenChart();
-      drawYoYChart();
+      drawCharts(rows);
       renderTable(rows);
     }
 
@@ -2724,8 +2548,13 @@ Ağu.26	3.520	₺12.468.190,00	₺3.740.457,00	26	₺91.933,00	₺27.579,90	₺1
     document.getElementById("exportExcel").addEventListener("click", exportToExcel);
     document.getElementById("printReport").addEventListener("click", printReport);
 
+    // Sürükleyerek yeniden boyutlandırma saniyede onlarca olay üretir; durulduktan sonra bir kez çiz.
+    let resizeTimer = 0;
     window.addEventListener("resize", () => {
-      if (!document.getElementById("dashboardApp").classList.contains("is-locked")) render();
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (!document.getElementById("dashboardApp").classList.contains("is-locked")) drawCharts(selectedRows());
+      }, 150);
     });
   </script>
 </body>
