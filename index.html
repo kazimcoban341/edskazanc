@@ -1240,13 +1240,13 @@
         <article class="chart-panel">
           <div class="panel-head">
             <h2>Brüt paydan net kâr/zarara köprü</h2>
-            <span class="hint">Seçili yıl · milyon TL</span>
+            <span class="hint">Seçili yıl · milyon TL, nominal</span>
           </div>
           <div style="position: relative;">
             <canvas id="bridgeChart" role="img" aria-label="Brüt belediye payından beklenen ve tahsilat bazlı net kâr/zarara maliyet köprüsü"></canvas>
             <div id="bridgeChartTooltip" class="custom-tooltip"></div>
           </div>
-          <p class="chart-explanation"><strong>Nasıl okunur:</strong> Soldan sağa brüt belediye payından şirket ücreti, Telekom ve yatırım düşülerek beklenen net kâr/zarara ulaşılır. Son adımda henüz tahsil edilmemiş belediye geliri çıkarılır; kalan, bugüne kadar fiilen tahsil edilenle oluşan sonuçtur.</p>
+          <p class="chart-explanation"><strong>Nasıl okunur:</strong> Soldan sağa brüt belediye payından şirket ücreti, Telekom ve yatırım düşülerek beklenen net kâr/zarara ulaşılır. Son adım (gri, kesikli) bir gider değil, henüz tahsil edilmemiş belediye geliridir; ödemeler geldikçe tahsilat bazlı sonuç beklenen sonuca yaklaşır. Tutarlar nominal TL'dir; enflasyon düzeltmesi yapılmamıştır.</p>
         </article>
         <article class="chart-panel">
           <div class="panel-head">
@@ -1582,12 +1582,14 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       light: {
         grid: "#e4e9f0", axis: "#667085", axisAlt: "#64748b", muted: "#94a3b8", teal: "#0f766e", negative: "#b42318",
         bar: "#155e75", warnText: "#93370d", amber: "#b45309", ink: "#475467", deltaFill: "#fef3c7", checkFill: "#ccfbf1",
-        totalFill: "#e2e8f0", valueText: "#344054", connector: "#98a2b3", strong: "#1e293b", cyan: "#0e7490", indigo: "#31377e"
+        totalFill: "#e2e8f0", valueText: "#344054", connector: "#98a2b3", strong: "#1e293b", cyan: "#0e7490", indigo: "#31377e",
+        pendingFill: "#f1f5f9", pendingStroke: "#64748b"
       },
       dark: {
         grid: "#2b3548", axis: "#9aa5b8", axisAlt: "#8794a8", muted: "#6b778c", teal: "#2dd4bf", negative: "#f2877d",
         bar: "#2a9cc0", warnText: "#f5b066", amber: "#f0a33a", ink: "#c3cbd8", deltaFill: "#3a2c14", checkFill: "#10352f",
-        totalFill: "#2b3548", valueText: "#e6eaf2", connector: "#5d6a80", strong: "#e6eaf2", cyan: "#38bdf8", indigo: "#a5b4fc"
+        totalFill: "#2b3548", valueText: "#e6eaf2", connector: "#5d6a80", strong: "#e6eaf2", cyan: "#38bdf8", indigo: "#a5b4fc",
+        pendingFill: "#1f2839", pendingStroke: "#8794a8"
       }
     };
     let C = CHART_THEMES.light;
@@ -1801,6 +1803,18 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       });
     }
 
+    // Eksen için yuvarlak adımlar (1, 2, 2,5, 5 × 10ⁿ); aralık bu adımların katlarına genişletilir, sıfır her zaman bir çizgiye denk gelir.
+    function niceTicks(min, max, count = 4) {
+      const raw = Math.max(max - min, 1) / count;
+      const magnitude = 10 ** Math.floor(Math.log10(raw));
+      const step = [1, 2, 2.5, 5, 10].map(m => m * magnitude).find(candidate => candidate >= raw);
+      const lo = Math.floor(min / step) * step;
+      const hi = Math.ceil(max / step) * step;
+      const ticks = [];
+      for (let i = 0; lo + i * step <= hi + step / 2; i++) ticks.push(lo + i * step);
+      return { min: lo, max: hi, step, ticks };
+    }
+
     function drawFinancialBridge(rows) {
       drawChart("bridgeChart", (ctx, w, h) => {
         const includeInvestment = includesInvestment(selectedYear);
@@ -1821,7 +1835,8 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         }
         items.push(
           { label: ["Beklenen net", "kâr/zarar"], shortLabel: "Beklenen net kâr/zarar", type: "checkpoint", value: expected, start: 0, end: expected },
-          { label: ["Bekleyen", "belediye geliri"], shortLabel: "Bekleyen belediye geliri", type: "delta", value: waiting, start: expected, end: actual },
+          // Gider değil, henüz gelmemiş alacak: ayrı (gri, kesikli) çizilir.
+          { label: ["Henüz tahsil", "edilmemiş gelir"], narrowLabel: "Bekleyen", shortLabel: "Henüz tahsil edilmemiş belediye geliri", type: "pending", value: waiting, start: expected, end: actual },
           { label: ["Tahsilat bazlı", "net kâr/zarar"], shortLabel: "Tahsilat bazlı net kâr/zarar", type: "total", value: actual, start: 0, end: actual }
         );
 
@@ -1832,20 +1847,27 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         const rawMin = Math.min(...allValues);
         const rawMax = Math.max(...allValues);
         const spread = Math.max(rawMax - rawMin, 1);
-        const min = rawMin - spread * .08;
-        const max = rawMax + spread * .12;
+        const scale = niceTicks(rawMin - spread * .04, rawMax + spread * .1);
+        const { min, max } = scale;
         const plotH = h - pad.top - pad.bottom;
         const y = value => pad.top + (max - value) / (max - min) * plotH;
         const band = (w - pad.left - pad.right) / Math.max(items.length, 1);
         const barW = Math.max(18, Math.min(44, band * .58));
 
-        chartFrame(ctx, w, h, pad);
         ctx.font = "11px Segoe UI";
-        ctx.fillStyle = C.axis;
-        for (let i = 0; i <= 4; i++) {
-          const value = max - ((max - min) / 4) * i;
-          ctx.fillText(moneyMillions(value, 0), 7, pad.top + plotH / 4 * i + 4);
-        }
+        scale.ticks.forEach(value => {
+          const isZero = Math.abs(value) < scale.step / 1000;
+          if (!isZero) {
+            ctx.strokeStyle = C.grid;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, y(value));
+            ctx.lineTo(w - pad.right, y(value));
+            ctx.stroke();
+          }
+          ctx.fillStyle = C.axis;
+          ctx.fillText(isZero ? "₺0" : moneyMillions(value, scale.step < 1000000 ? 1 : 0), 7, y(value) + 4);
+        });
 
         if (min < 0 && max > 0) {
           ctx.save();
@@ -1863,7 +1885,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
           const topY = y(Math.max(item.start, item.end));
           const bottomY = y(Math.min(item.start, item.end));
           const height = Math.max(2, bottomY - topY);
-          if (index > 0 && item.type === "delta") {
+          if (index > 0 && (item.type === "delta" || item.type === "pending")) {
             const connectorY = y(item.start);
             const previousX = pad.left + band * (index - 1) + band / 2 + barW / 2;
             ctx.save();
@@ -1876,7 +1898,12 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
             ctx.restore();
           }
 
-          if (item.type === "delta") {
+          ctx.save();
+          if (item.type === "pending") {
+            ctx.fillStyle = C.pendingFill;
+            ctx.strokeStyle = C.pendingStroke;
+            ctx.setLineDash([4, 3]);
+          } else if (item.type === "delta") {
             ctx.fillStyle = C.deltaFill;
             ctx.strokeStyle = C.amber;
           } else if (item.type === "checkpoint") {
@@ -1889,10 +1916,14 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
           ctx.lineWidth = 1.5;
           ctx.fillRect(cx - barW / 2, topY, barW, height);
           ctx.strokeRect(cx - barW / 2, topY, barW, height);
+          ctx.restore();
 
-          ctx.fillStyle = item.value < 0 ? C.warnText : C.valueText;
+          // Zamanlama farkı kayıp gibi kırmızımsı yazılmaz.
+          ctx.fillStyle = item.type === "pending" ? C.ink : item.value < 0 ? C.warnText : C.valueText;
           ctx.font = "700 10px Segoe UI";
-          const valueY = item.end >= item.start ? Math.max(13, topY - 7) : Math.min(h - pad.bottom - 4, bottomY + 14);
+          // Sıfırın altına inen çubuğun etiketi alt kılavuz çizgisiyle çakışmasın diye çubuğun içine yazılır.
+          const insideBottom = item.end < item.start && Math.min(item.start, item.end) < 0 && height > 20;
+          const valueY = item.end >= item.start ? Math.max(13, topY - 7) : insideBottom ? bottomY - 6 : Math.min(h - pad.bottom - 4, bottomY + 14);
           ctx.textAlign = "center";
           ctx.fillText(`${item.value < 0 ? "−" : ""}${decimal(Math.abs(item.value) / 1000000)}`, cx, valueY);
 
@@ -1903,7 +1934,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
             ctx.translate(cx + 4, h - pad.bottom + 14);
             ctx.rotate(-Math.PI / 5);
             ctx.textAlign = "right";
-            ctx.fillText(item.label[0].split(" ")[0], 0, 0);
+            ctx.fillText(item.narrowLabel || item.label[0].split(" ")[0], 0, 0);
             ctx.restore();
           } else {
             item.label.forEach((line, lineIndex) => ctx.fillText(line, cx, h - pad.bottom + 22 + lineIndex * 13));
@@ -2592,7 +2623,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
   figcaption { margin-bottom: 1.5mm; font-size: 8pt; font-weight: 700; color: #1b2152; }
   figcaption em { font-style: normal; font-weight: 400; color: #64748b; }
   figure img { display: block; width: 100%; height: auto; }
-  .notes { margin-top: 3mm; font-size: 6.8pt; line-height: 1.45; color: #475467; }
+  .notes { margin-top: 3mm; font-size: 6.5pt; line-height: 1.45; color: #475467; }
   .notes p { margin: 0 0 0.8mm; }
 </style>
 </head>
@@ -2621,16 +2652,16 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
   </div>
   <div class="charts">
     <figure>
-      <figcaption>Kümülatif net kâr/zarar ve başabaş <em>· tüm dönem</em></figcaption>
+      <figcaption>Kümülatif net kâr/zarar ve başabaş <em>· tüm dönem · nominal TL</em></figcaption>
       <img src="${charts.breakEvenChart}" alt="Kümülatif net kâr/zarar ve başabaş grafiği">
     </figure>
     <figure>
-      <figcaption>Brüt paydan net kâr/zarara köprü <em>· ${escape(scopeText)} · milyon TL</em></figcaption>
+      <figcaption>Brüt paydan net kâr/zarara köprü <em>· ${escape(scopeText)} · milyon TL, nominal</em></figcaption>
       <img src="${charts.bridgeChart}" alt="Brüt belediye payından net kâr/zarara maliyet köprüsü">
     </figure>
   </div>
   <div class="notes">
-    <p><strong>Terimler:</strong> Brüt belediye payı net ceza tutarının %30'udur. Belediye geliri, brüt paydan şirket ücreti (KDV dahil) düşülerek; net katkı, belediye gelirinden Telekom gideri düşülerek; net kâr/zarar ise net katkıdan kurulum yatırımı düşülerek hesaplanır.</p>
+    <p><strong>Terimler:</strong> Brüt belediye payı = net ceza × %30 · Belediye geliri = brüt pay − şirket ücreti (KDV dahil) · Net katkı = belediye geliri − Telekom · Net kâr/zarar = net katkı − kurulum yatırımı. Tutarlar nominal TL'dir, enflasyona göre düzeltilmemiştir.</p>
   </div>
 </body>
 </html>`;
@@ -2717,7 +2748,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         if (index < 0 || index >= items.length) return null;
         const item = items[index];
         return {
-          html: `<strong>${item.shortLabel}</strong><br/>${item.type === "delta" ? "Net etki" : "Ara toplam"}: <strong>${money.format(item.value)}</strong>`,
+          html: `<strong>${item.shortLabel}</strong><br/>${item.type === "delta" ? "Net etki" : item.type === "pending" ? "Zamanlama farkı (gider değil)" : "Ara toplam"}: <strong>${money.format(item.value)}</strong>`,
           x: scale.pad.left + scale.band * index + scale.band / 2,
           top: 12
         };
@@ -2843,7 +2874,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       const expectedText = expectedPoint ? `Beklenen başabaş ${periodName(expectedPoint.row)}` : "Beklenen başabaşa henüz ulaşılmamıştır";
       const actualText = actualPoint ? `tahsilat bazlı başabaş ${periodName(actualPoint.row)}` : `tahsilat bazlı başabaşa henüz ulaşılamamıştır (son durum ${moneyMillions(last.actual)}); ${cashText}`;
       document.getElementById("breakEvenExplanation").innerHTML =
-        `<strong>Nasıl okunur:</strong> Çizgiler yatırım maliyetiyle (${moneyMillions(-INVESTMENT_COST)}) başlar ve her ayın sonucunu ekleyerek ilerler. Düz çizgi tahsil edilmemiş gelirler dahil beklenen sonucu, kesikli çizgi yalnızca tahsil edilen gelirlerle oluşan sonucu gösterir. ${expectedText}; ${actualText}.`;
+        `<strong>Nasıl okunur:</strong> Çizgiler yatırım maliyetiyle (${moneyMillions(-INVESTMENT_COST)}) başlar ve her ayın sonucunu ekleyerek ilerler. Düz çizgi tahsil edilmemiş gelirler dahil beklenen sonucu, kesikli çizgi yalnızca tahsil edilen gelirlerle oluşan sonucu gösterir. ${expectedText}; ${actualText}. Tutarlar nominal TL'dir; enflasyon düzeltmesi yapılmamıştır.`;
     }
 
     const currentTheme = () => document.documentElement.dataset.theme === "dark" ? "dark" : "light";
