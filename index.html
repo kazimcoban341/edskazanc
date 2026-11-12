@@ -2496,15 +2496,21 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       const lag = lastPaid ? lastPaid.date.getFullYear() * 12 + lastPaid.date.getMonth() - lastPaid.row.sort : null;
       const investment = moneyMillions(INVESTMENT_COST);
 
-      const first = expectedPoint
-        ? `Tüm dönem itibarıyla sistem, hak edilen gelirle ${periodName(expectedPoint.row)} ayında ${investment} tutarındaki kurulum yatırımını geri kazanmıştır.`
-        : `Tüm dönem itibarıyla hak edilen gelirle kurulum yatırımının (${investment}) geri kazanılmasına ${moneyMillions(-last.expected)} kalmıştır.`;
-      if (actualPoint) return `${first} Fiilen tahsil edilen gelirle de ${periodName(actualPoint.row)} ayında başabaşa ulaşılmıştır.`;
-      const second = `${expectedPoint ? "Ancak " : ""}${PAYER} tarafından belediyeye yapılan ödemeler${lag !== null ? `, ait oldukları dönemden yaklaşık ${lag} ay sonra` : ""} geldiği için bugüne kadar fiilen tahsil edilen gelirle ${moneyMillions(Math.abs(last.actual))} açık bulunmaktadır.`;
-      const third = running >= 0
-        ? `Bekleyen ${pendingNeeded.length} dönemin (${shortPeriod(pendingNeeded[0])} – ${shortPeriod(pendingNeeded[pendingNeeded.length - 1])}) ödemesi geldiğinde fiilen başabaşa ulaşılır; toplam bekleyen belediye geliri ${moneyMillions(unpaidTotal)} (${unpaid.length} ay).`
-        : `Bekleyen tüm ödemeler (${moneyMillions(unpaidTotal)}, ${unpaid.length} ay) gelse de fiilen başabaşa ${moneyMillions(-running)} kalır.`;
-      return `${first} ${second} ${third}`;
+      const pendingText = unpaid.length ? ` Toplam bekleyen belediye geliri ${moneyMillions(unpaidTotal)} (${unpaid.length} ay).` : "";
+
+      // Önce bugün fiilen olan söylenir; hak edilen gelir "kazanıldı" gibi okunmasın diye sonra ve "karşılamaktadır" diye verilir.
+      if (actualPoint) {
+        return `Tüm dönem itibarıyla kurulum yatırımı (${investment}), fiilen tahsil edilen gelirle ${periodName(actualPoint.row)} ayında geri kazanılmıştır.${pendingText}`;
+      }
+      const cash = `Tüm dönem itibarıyla fiilen tahsil edilen gelirle kurulum yatırımı (${investment}) henüz geri kazanılmamıştır; bugün itibarıyla ${moneyMillions(Math.abs(last.actual))} açık bulunmaktadır.`;
+      const reason = lag !== null
+        ? `Bunun nedeni, ${PAYER} tarafından yapılan ödemelerin ait oldukları dönemden yaklaşık ${lag} ay sonra gelmesidir.`
+        : `Bunun nedeni, ${PAYER} tarafından yapılan ödemelerin henüz gelmemiş olmasıdır.`;
+      // Hak edilen gelir yatırımı karşılamıyorsa bekleyen ödemelerin tamamı da yetmez; eksik tutar bir kez söylenir.
+      const accrued = expectedPoint && running >= 0
+        ? `Hak edilen gelir (henüz ödenmemiş olanlar dahil) ${periodName(expectedPoint.row)} itibarıyla yatırım tutarını karşılamaktadır; bekleyen ${pendingNeeded.length} dönemin (${shortPeriod(pendingNeeded[0])} – ${shortPeriod(pendingNeeded[pendingNeeded.length - 1])}) ödemesi geldiğinde fiilen başabaşa ulaşılır.`
+        : `Hak edilen gelir (henüz ödenmemiş olanlar dahil) de yatırım tutarını henüz karşılamamaktadır; bekleyen tüm ödemeler gelse de ${moneyMillions(-running)} eksik kalır.`;
+      return `${cash} ${reason} ${accrued}${pendingText}`;
     }
 
     // Yöneticiye götürülecek tek sayfalık özet: antet, durum özeti, KPI'lar, başabaş ve maliyet köprüsü grafikleri.
@@ -2519,7 +2525,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       const periodText = `${periodName(periodRows[0])} – ${periodName(periodRows[periodRows.length - 1])}`;
       const scopeText = selectedYear === "all" ? "Tüm yıllar" : `${selectedYear} yılı`;
       const logoUrl = new URL("assets/kutahya-belediyesi-logo.webp", location.href).href;
-      const charts = captureCharts(["breakEvenChart", "bridgeChart"], 640, 222);
+      const charts = captureCharts(["breakEvenChart", "bridgeChart"], 640, 205);
       const includeInvestment = includesInvestment(selectedYear);
 
       // Kart değerleri animasyonun ortasında olabilir; son hesaplanan değerler kullanılır.
