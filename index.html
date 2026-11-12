@@ -1430,6 +1430,8 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
     // Pano özetinde kullanılan kurumsal bilgiler.
     const PAYER = "Emniyet Genel Müdürlüğü (EGM)";
     const PREPARED_BY = "Ulaşım Hizmetleri Müdürlüğü";
+    const SITE_URL = "https://edskazanci.netlify.app/";
+    const SITE_LABEL = "edskazanci.netlify.app";
     const INVESTMENT_YEAR = 2023;
     const fullMonthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
     const periodName = row => `${fullMonthNames[row.month]} ${row.year}`;
@@ -2592,7 +2594,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
   @page {
     size: A4 landscape;
     margin: 10mm 10mm 12mm;
-    @bottom-left { content: "T.C. Kütahya Belediyesi · ${PREPARED_BY} · EDS Ceza Gelirleri Pano Özeti"; font: 7.5pt "Segoe UI", Arial, sans-serif; color: #667085; }
+    @bottom-left { content: "T.C. Kütahya Belediyesi · ${PREPARED_BY} · EDS Ceza Gelirleri Pano Özeti – Detaylı bilgi için: ${SITE_LABEL}"; font: 7.5pt "Segoe UI", Arial, sans-serif; color: #667085; }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
@@ -2604,6 +2606,8 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
     print-color-adjust: exact;
   }
   ${LETTERHEAD_CSS}
+  .lh .meta { line-height: 1.4; }
+  .lh .meta a { color: #1b2152; text-decoration: none; }
   .headline { display: grid; grid-template-columns: 3fr 2fr; gap: 5mm; margin: 3mm 0 0; padding: 2.5mm 3.5mm; border: 0.6pt solid #9fb3e8; border-radius: 1.5mm; background: #eef3ff; font-size: 8.2pt; line-height: 1.42; color: #1f2a44; break-inside: avoid; }
   .headline p { margin: 0; }
   .headline p + p { padding-left: 5mm; border-left: 0.6pt solid #c3cfee; font-size: 7.2pt; color: #475467; }
@@ -2641,6 +2645,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       <div><strong>Veri güncelleme:</strong> ${escape(DATA_UPDATED)}</div>
       <div><strong>Rapor tarihi:</strong> ${escape(printedAt)}</div>
       <div><strong>Hazırlayan:</strong> ${escape(PREPARED_BY)}</div>
+      <div><strong>Pano:</strong> <a href="${SITE_URL}">${escape(SITE_LABEL)}</a></div>
     </div>
   </div>
   <div class="headline">
