@@ -4,13 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow, noarchive">
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link rel="icon" type="image/webp" href="assets/kutahya-belediyesi-logo.webp">
   <title>Ceza Gelirleri Dashboard</title>
+  <script>
+    // Tema ilk çizimden önce uygulanır; yoksa koyu tercih eden kullanıcı bir an açık ekranı görür.
+    (() => {
+      let theme = null;
+      try { theme = localStorage.getItem("edsTheme"); } catch {}
+      if (theme !== "light" && theme !== "dark") theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
   <style>
     :root {
       --bg: #eef3f7;
       --panel: #ffffff;
-      --panel-2: #f7fafc;
       --text: #111827;
       --muted: #64748b;
       --line: #d9e2ec;
@@ -21,6 +29,7 @@
       --good: #047857;
       --ink-soft: #334155;
       --shadow: 0 16px 38px rgba(15, 23, 42, .08);
+      color-scheme: light;
     }
 
     * { box-sizing: border-box; }
@@ -198,7 +207,7 @@
       display: none;
     }
 
-    .logout-button {
+    .logout-button, .header-button {
       min-height: 40px;
       border: 1px solid #d9e2ec;
       border-radius: 8px;
@@ -219,7 +228,20 @@
       color: var(--danger);
     }
 
+    .header-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-button:hover {
+      background: #f1f4f9;
+      border-color: #c7d2e0;
+      color: #1b2152;
+    }
+
     .logout-button:focus-visible,
+    .header-button:focus-visible,
     .year-tab:focus-visible {
       outline: 3px solid rgba(49, 55, 126, .35);
       outline-offset: 2px;
@@ -245,8 +267,9 @@
       margin-right: 7px;
     }
 
-    .dot.good { background: #12b76a; }
-    .dot.warn { background: #f79009; }
+    /* Lejant noktaları tahsilat çubuğuyla aynı renkte. */
+    .dot.good { background: var(--good); }
+    .dot.warn { background: var(--accent); }
 
     main {
       min-width: 0;
@@ -283,14 +306,11 @@
       max-width: 880px;
     }
 
+    /* Veri dönemi ve son güncelleme: alt başlığın altında bilgi satırı */
     .asof {
-      white-space: nowrap;
-      border: 1px solid #dbe4ef;
-      border-radius: 8px;
-      background: #f8fafc;
-      padding: 11px 13px;
+      margin: 6px 0 0;
       color: var(--ink-soft);
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 700;
     }
 
@@ -319,8 +339,9 @@
       gap: 8px;
     }
 
-    .header-meta .asof {
-      padding: 9px 12px;
+    .asof-updated {
+      color: var(--muted);
+      font-weight: 600;
     }
 
     /* Yıl seçimi: tek satırlık bölümlü düğme grubu */
@@ -357,12 +378,49 @@
     }
 
     /* Terim zinciri: brüt paydan net kâr/zarara giden kademeler */
+    /* Terim zinciri Sonuç kartlarının altında, varsayılan kapalı. */
+    .glossary-details {
+      grid-column: 1 / -1;
+      margin-top: -6px;
+    }
+
+    .glossary-details summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 32px;
+      padding: 4px 2px;
+      color: var(--ink-soft);
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      list-style: none;
+      border-radius: 6px;
+    }
+
+    .glossary-details summary::-webkit-details-marker { display: none; }
+
+    .glossary-details summary::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: rotate(-45deg);
+      transition: transform .15s ease;
+    }
+
+    .glossary-details[open] summary::before { transform: rotate(45deg); }
+    .glossary-details summary:hover { color: var(--text); }
+    .glossary-details summary:focus-visible { outline: 3px solid rgba(49, 55, 126, .45); outline-offset: 2px; }
+    :root[data-theme="dark"] .glossary-details summary:focus-visible { outline-color: #8ea0ff; }
+
     .glossary {
       display: flex;
       flex-wrap: wrap;
       align-items: stretch;
       gap: 6px;
-      margin: -6px 0 22px;
+      margin: 6px 0 0;
       padding: 10px;
       border: 1px solid rgba(217, 226, 236, .95);
       border-radius: 8px;
@@ -422,13 +480,46 @@
       text-transform: uppercase;
     }
 
-
     .kpis .card.col-3 {
       grid-column: span 3;
     }
 
     .kpis .card.col-4 {
       grid-column: span 4;
+    }
+
+    .kpis .card.col-8 {
+      grid-column: span 8;
+    }
+
+    /* Tahsilat kartı: oran, ödenen/bekleyen çubuğu ve iki tutar tek kartta. */
+    .collection-head {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 4px 14px;
+    }
+
+    .collection-split {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px 24px;
+    }
+
+    .collection-name {
+      display: flex;
+      align-items: center;
+      color: var(--ink-soft);
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    .collection-amount {
+      margin: 4px 0 2px;
+      font-size: clamp(17px, 1.4vw, 20px);
+      font-weight: 780;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
     }
 
     .card, .chart-panel, .table-panel {
@@ -475,8 +566,8 @@
       color: #1e3a8a;
     }
 
-    .card.primary-outcome .value {
-      font-size: clamp(20px, 1.9vw, 26px);
+    .kpis .card.primary-outcome .value {
+      font-size: clamp(22px, 2.1vw, 30px);
       font-weight: 820;
     }
 
@@ -488,21 +579,33 @@
       line-height: 1.25;
     }
 
+    /* Yıl seçiminden etkilenmeyen kartı, etkilenen komşularından ayırır. */
+    .scope-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #1b2152;
+      color: #fff;
+      font-size: 10.5px;
+      letter-spacing: .03em;
+      vertical-align: 1px;
+    }
+
     .value {
-      font-size: clamp(21px, 2.2vw, 29px);
+      font-size: clamp(19px, 1.7vw, 23px);
       line-height: 1.05;
       font-weight: 780;
       overflow-wrap: anywhere;
     }
 
-    .kpis .card.col-3 .value {
-      font-size: clamp(18px, 1.7vw, 23px);
-    }
+    .value.is-negative { color: var(--danger); }
 
     .delta {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 6px;
+      gap: 2px 6px;
       color: #64748b;
       font-size: 12px;
       min-height: 18px;
@@ -511,10 +614,9 @@
     .delta.positive { color: var(--good); font-weight: 600; }
     .delta.negative { color: var(--danger); font-weight: 600; }
     .delta.neutral { color: var(--ink-soft); font-weight: 600; }
-    .delta .delta-context { color: #7a8699; font-weight: 500; }
-    .delta { flex-wrap: wrap; column-gap: 6px; row-gap: 2px; }
+    .delta .delta-context { color: #64748b; font-weight: 500; }
 
-    .value, .status-value, td { font-variant-numeric: tabular-nums; }
+    .value, .collection-amount, td { font-variant-numeric: tabular-nums; }
 
     .grid {
       display: grid;
@@ -571,45 +673,12 @@
       display: block;
     }
 
-    .small canvas { height: 245px; }
-
     .balanced-grid {
       grid-template-columns: repeat(2, minmax(360px, 1fr));
     }
 
     .full-grid {
       grid-template-columns: minmax(0, 1fr);
-    }
-
-    .status-visual {
-      min-height: 225px;
-      display: grid;
-      align-content: start;
-      gap: 14px;
-      padding-top: 4px;
-    }
-
-    .status-total {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 14px;
-      padding: 12px;
-      border: 1px solid #e4ebf2;
-      border-radius: 8px;
-      background: #f9fbfd;
-    }
-
-    .status-total strong {
-      font-size: 20px;
-      white-space: nowrap;
-    }
-
-    .status-total span { display: block; margin-bottom: 4px; }
-
-    .status-total span, .status-meta {
-      color: var(--muted);
-      font-size: 12px;
     }
 
     .status-track {
@@ -621,38 +690,8 @@
       background: #edf1f5;
     }
 
-    .status-segment-paid { background: var(--good); }
-    .status-segment-unpaid { background: var(--accent); }
-
-    .status-rows {
-      display: grid;
-      gap: 10px;
-    }
-
-    .status-row {
-      display: grid;
-      grid-template-columns: minmax(110px, 1fr) auto;
-      gap: 12px;
-      align-items: center;
-      padding: 10px 12px;
-      border: 1px solid #e4ebf2;
-      border-radius: 8px;
-      background: #f9fbfd;
-    }
-
-    .status-name {
-      color: var(--ink-soft);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .status-value {
-      color: var(--text);
-      font-size: 14px;
-      font-weight: 780;
-      text-align: right;
-      white-space: nowrap;
-    }
+    .status-segment-paid { background: var(--good); transition: width .4s ease; }
+    .status-segment-unpaid { background: var(--accent); transition: width .4s ease; }
 
     .table-panel {
       overflow: hidden;
@@ -701,6 +740,23 @@
     }
 
     th:first-child, td:first-child { text-align: left; }
+
+    /* Yatay kaydırmada Ay (sol) ve Net Katkı (sağ) sütunları yerinde kalır. */
+    th:first-child, tbody td:first-child, tfoot tr:not(.reconcile) td:first-child { position: sticky; left: 0; }
+    th:last-child, td:last-child { position: sticky; right: 0; }
+    th:first-child, th:last-child { z-index: 4; }
+    th:first-child { box-shadow: 0 1px 0 #dbe3ec, inset -1px 0 0 #dbe3ec; }
+    th:last-child { box-shadow: 0 1px 0 #dbe3ec, inset 1px 0 0 #dbe3ec; }
+    tbody td:first-child, tbody td:last-child { z-index: 1; background: #fff; }
+    td:first-child { box-shadow: inset -1px 0 0 #e4ebf2; }
+    td:last-child { box-shadow: inset 1px 0 0 #e4ebf2; }
+    tbody tr:hover td:first-child, tbody tr:hover td:last-child { background: #f7fbff; }
+    tbody tr.unpaid-row td:first-child, tbody tr.unpaid-row td:last-child { background: #fffcf7; }
+    tbody tr.unpaid-row:hover td:first-child, tbody tr.unpaid-row:hover td:last-child { background: #fff9ee; }
+
+    /* Mutabakat satırlarının etiketi birçok sütuna yayılır; metni kaydırmada solda tutulur. */
+    tfoot td.reconcile-label { box-shadow: none; }
+    .reconcile-label span { position: sticky; left: 12px; display: inline-block; }
     tbody tr:hover { background: #f7fbff; }
 
     tbody tr.unpaid-row {
@@ -774,10 +830,7 @@
 
     /* Sortable Headers */
     .sort-header {
-      cursor: pointer;
-      user-select: none;
-      position: sticky;
-      top: 0;
+      padding: 0;
       z-index: 3;
       box-shadow: 0 1px 0 #dbe3ec;
     }
@@ -785,6 +838,169 @@
       background: #e2e8f0;
       color: #0f172a;
     }
+    .sort-button {
+      width: 100%;
+      padding: 11px 12px;
+      border: 0;
+      background: none;
+      color: inherit;
+      font: inherit;
+      text-transform: inherit;
+      text-align: inherit;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .sort-button:focus-visible {
+      outline: 3px solid rgba(49, 55, 126, .45);
+      outline-offset: -3px;
+    }
+
+    .table-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 6px 12px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--btn-bg);
+      color: #fff;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s ease;
+    }
+    .btn:hover { background: var(--btn-hover); }
+    .btn:focus-visible { outline: 3px solid rgba(49, 55, 126, .45); outline-offset: 2px; }
+    .btn:disabled { opacity: .6; cursor: progress; }
+    .btn-csv { --btn-bg: #0e7490; --btn-hover: #155e75; }
+    .btn-excel { --btn-bg: #15803d; --btn-hover: #166534; }
+    .btn-print { --btn-bg: #1b2152; --btn-hover: #31377e; }
+
+    .table-footnote {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 12px 18px;
+      border-top: 1px solid var(--line);
+      background: #f0f9ff;
+      color: #075985;
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+    .table-footnote svg { flex-shrink: 0; margin-top: 2px; }
+
+    /* ---------- Karanlık tema ---------- */
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #0f1420;
+      --panel: #171e2c;
+      --panel-2: #1d2535;
+      --text: #e6eaf2;
+      --muted: #9aa5b8;
+      --line: #2b3548;
+      --brand: #22a3c4;
+      --brand-2: #2bb3a3;
+      --accent: #e0a145;
+      --danger: #f2877d;
+      --good: #34c48b;
+      --ink-soft: #c3cbd8;
+      --shadow: 0 16px 38px rgba(0, 0, 0, .35);
+    }
+
+    :root[data-theme="dark"] body { background: var(--bg); }
+
+    :root[data-theme="dark"] header,
+    :root[data-theme="dark"] .card,
+    :root[data-theme="dark"] .chart-panel,
+    :root[data-theme="dark"] .table-panel,
+    :root[data-theme="dark"] .glossary {
+      background: var(--panel);
+      border-color: var(--line);
+    }
+
+    :root[data-theme="dark"] .card.primary-outcome {
+      background: linear-gradient(180deg, #1a2540, var(--panel));
+      border-color: rgba(110, 146, 255, .35);
+      box-shadow: var(--shadow);
+    }
+    :root[data-theme="dark"] .card.primary-outcome .label { color: #a9c0ff; }
+    :root[data-theme="dark"] .card .label,
+    :root[data-theme="dark"] .subtitle { color: #a9b3c4; }
+    :root[data-theme="dark"] .kpi-section-label,
+    :root[data-theme="dark"] .chart-explanation strong { color: var(--ink-soft); }
+    :root[data-theme="dark"] h2 { color: var(--text); }
+    :root[data-theme="dark"] .hint,
+    :root[data-theme="dark"] .chart-explanation,
+    :root[data-theme="dark"] .delta,
+    :root[data-theme="dark"] .delta .delta-context { color: var(--muted); }
+    :root[data-theme="dark"] .delta.positive { color: var(--good); }
+    :root[data-theme="dark"] .delta.negative { color: var(--danger); }
+    :root[data-theme="dark"] .delta.neutral { color: var(--ink-soft); }
+    :root[data-theme="dark"] .chart-explanation { border-top-color: var(--line); }
+
+    :root[data-theme="dark"] .logout-button,
+    :root[data-theme="dark"] .header-button {
+      background: var(--panel-2);
+      border-color: var(--line);
+      color: var(--ink-soft);
+    }
+    :root[data-theme="dark"] .header-button:hover { background: #263048; border-color: #3a4660; color: #fff; }
+    :root[data-theme="dark"] .logout-button:hover { background: #3a1d1d; border-color: #7f2d2d; color: var(--danger); }
+
+    :root[data-theme="dark"] .year-tabs { background: var(--panel-2); border-color: var(--line); }
+    :root[data-theme="dark"] .year-tab { color: #b6bfcc; }
+    :root[data-theme="dark"] .year-tab:hover { background: #263048; color: #fff; }
+    :root[data-theme="dark"] .year-tab[aria-pressed="true"],
+    :root[data-theme="dark"] .scope-badge { background: #4c5bd4; color: #fff; }
+
+    :root[data-theme="dark"] .glossary-step { background: var(--panel-2); }
+    :root[data-theme="dark"] .glossary-step strong { color: #c7d0ff; }
+    :root[data-theme="dark"] .glossary-step span { color: var(--muted); }
+    :root[data-theme="dark"] .glossary-op { color: #e0b75a; }
+    :root[data-theme="dark"] .glossary-step.is-final { background: #232c4a; box-shadow: inset 0 0 0 1px rgba(124, 140, 255, .35); }
+
+    :root[data-theme="dark"] .status-track { background: #263048; }
+
+    :root[data-theme="dark"] .table-head { background: var(--panel-2); border-bottom-color: var(--line); }
+    :root[data-theme="dark"] th { background: #1f2839; color: #b6bfcc; }
+    :root[data-theme="dark"] th, :root[data-theme="dark"] .sort-header { box-shadow: 0 1px 0 var(--line); }
+    :root[data-theme="dark"] th:first-child { box-shadow: 0 1px 0 var(--line), inset -1px 0 0 var(--line); }
+    :root[data-theme="dark"] th:last-child { box-shadow: 0 1px 0 var(--line), inset 1px 0 0 var(--line); }
+    :root[data-theme="dark"] .sort-header:hover { background: #263048; color: #fff; }
+    :root[data-theme="dark"] th, :root[data-theme="dark"] td { border-bottom-color: #232c3d; }
+    :root[data-theme="dark"] td:first-child { box-shadow: inset -1px 0 0 var(--line); }
+    :root[data-theme="dark"] td:last-child { box-shadow: inset 1px 0 0 var(--line); }
+    :root[data-theme="dark"] tbody td:first-child,
+    :root[data-theme="dark"] tbody td:last-child { background: var(--panel); }
+    :root[data-theme="dark"] tbody tr:hover,
+    :root[data-theme="dark"] tbody tr:hover td:first-child,
+    :root[data-theme="dark"] tbody tr:hover td:last-child { background: #1e2a3d; }
+    :root[data-theme="dark"] tbody tr.unpaid-row { background: rgba(224, 161, 69, .06); }
+    :root[data-theme="dark"] tbody tr.unpaid-row td:first-child,
+    :root[data-theme="dark"] tbody tr.unpaid-row td:last-child { background: #1e2029; }
+    :root[data-theme="dark"] tbody tr.unpaid-row:hover,
+    :root[data-theme="dark"] tbody tr.unpaid-row:hover td:first-child,
+    :root[data-theme="dark"] tbody tr.unpaid-row:hover td:last-child { background: #252532; }
+    :root[data-theme="dark"] tfoot td { background: #182c35; border-top-color: #2f5562; color: #d6eef5; }
+    :root[data-theme="dark"] tfoot tr.reconcile td { background: #162530; border-top-color: #2b4450; color: var(--ink-soft); }
+    :root[data-theme="dark"] tfoot tr.reconcile.is-result td { background: #1b3440; color: #e6f4f8; }
+    :root[data-theme="dark"] .pill.paid { color: #7ee2b1; background: #123b2a; }
+    :root[data-theme="dark"] .pill.unpaid { color: #f5c07a; background: #3d2a12; }
+    :root[data-theme="dark"] .pill.none { color: #b6bfcc; background: #263048; }
+    :root[data-theme="dark"] .table-footnote { background: #0f2433; border-top-color: var(--line); color: #9fd3ef; }
+
+    :root[data-theme="dark"] .logout-button:focus-visible,
+    :root[data-theme="dark"] .header-button:focus-visible,
+    :root[data-theme="dark"] .year-tab:focus-visible,
+    :root[data-theme="dark"] .btn:focus-visible,
+    :root[data-theme="dark"] .sort-button:focus-visible { outline-color: #8ea0ff; }
 
     @media (max-width: 1120px) {
       .kpis {
@@ -794,7 +1010,8 @@
       .kpis .card {
         grid-column: span 1 !important;
       }
-      .kpis .card.col-4:last-child {
+      .kpis .card.col-4:last-child,
+      .kpis .card.fill-row {
         grid-column: span 2 !important;
       }
       .grid { grid-template-columns: 1fr; }
@@ -815,14 +1032,14 @@
       .header-actions { justify-items: stretch; }
       .year-tabs { display: flex; overflow-x: auto; }
       .year-tab { flex: 1 0 auto; }
-      .header-meta { justify-content: space-between; }
-      .asof { white-space: normal; }
+      .header-meta { flex-wrap: wrap; }
+      /* Dar ekranda iki sabit sütun kaydırılacak alan bırakmaz; yalnızca Ay sabit kalır. */
+      th:last-child, td:last-child { right: auto; }
       .glossary { flex-direction: column; }
       .glossary-step { flex: none; }
       .glossary-op { place-items: start; padding: 0 10px; }
       .panel-head, .table-head { align-items: flex-start; flex-direction: column; gap: 8px; }
       canvas { height: 260px; }
-      .small canvas { height: 220px; }
     }
 
     @media (max-width: 580px) {
@@ -832,7 +1049,8 @@
       }
       .kpis .card,
       .kpis .card.col-4,
-      .kpis .card.col-4:last-child {
+      .kpis .card.col-4:last-child,
+      .kpis .card.fill-row {
         grid-column: 1 / -1 !important;
       }
       .card {
@@ -842,11 +1060,14 @@
       .value {
         font-size: 20px;
       }
-      .status-row {
-        grid-template-columns: 1fr;
+      .kpis .card.primary-outcome .value {
+        font-size: 23px;
       }
-      .status-value {
-        text-align: left;
+      .btn, .year-tab, .header-button, .logout-button {
+        min-height: 44px;
+      }
+      .collection-split {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -865,7 +1086,7 @@
         <h2>Kurumsal performans paneli</h2>
         <p>Aylık ceza, tahsilat, belediye geliri ve operasyon performansını izlemek için oturum açın.</p>
       </div>
-      <form class="login-form" id="loginForm" autocomplete="off">
+      <form class="login-form" id="loginForm">
         <div class="login-field">
           <label for="username">Kullanıcı adı</label>
           <input id="username" name="username" type="text" autocomplete="username" required>
@@ -895,74 +1116,85 @@
           <div>
             <h1>Ceza, tahsilat ve net kâr/zarar</h1>
             <p class="subtitle">T.C. Kütahya Belediyesi EDS · Yatırımın geri dönüşü, belediyeye yapılan tahsilat ve aylık ceza operasyonu.</p>
+            <p class="asof" id="asOf"></p>
           </div>
         </div>
         <div class="header-actions">
           <div class="year-tabs" id="yearTabs" role="group" aria-label="Yıl seçimi"></div>
           <div class="header-meta">
-            <div class="asof" id="asOf"></div>
+            <button class="header-button" id="printSummary" type="button" title="Tek sayfalık pano özetini yazdır veya PDF olarak kaydet">
+              <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Pano özeti
+            </button>
+            <button class="header-button" id="themeToggle" type="button" aria-pressed="false">
+              <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+              <span id="themeToggleLabel">Koyu tema</span>
+            </button>
             <button class="logout-button" id="logoutButton" type="button">Çıkış yap</button>
           </div>
         </div>
       </header>
 
-      <section class="glossary" aria-label="Terimler">
-        <div class="glossary-step"><strong>Brüt belediye payı</strong><span>Net ceza tutarının %30'u</span></div>
-        <div class="glossary-op">− şirket ücreti</div>
-        <div class="glossary-step"><strong>Belediye geliri</strong><span>Şirket ücreti (KDV dahil) düşülmüş</span></div>
-        <div class="glossary-op">− Telekom</div>
-        <div class="glossary-step"><strong>Net katkı</strong><span>Telekom gideri de düşülmüş aylık sonuç</span></div>
-        <div class="glossary-op">− yatırım</div>
-        <div class="glossary-step is-final"><strong>Net kâr/zarar</strong><span>Kurulum yatırımı da düşülmüş sonuç</span></div>
-      </section>
-
       <section class="kpis">
         <div class="kpi-section-label">Sonuç</div>
-        <article class="card col-3 primary-outcome">
+        <article class="card col-4 primary-outcome">
           <div class="label">Beklenen Net Kâr/Zarar</div>
           <div class="value" id="kpiNet">₺0</div>
           <div class="kpi-note" id="kpiNetNote">Bekleyen tahsilatlar dahil; şirket, Telekom ve yatırım düşülmüş</div>
           <div class="delta" id="kpiNetDelta"></div>
         </article>
-        <article class="card col-3 primary-outcome">
+        <article class="card col-4 primary-outcome">
           <div class="label">Tahsilat Bazlı Net Kâr/Zarar</div>
           <div class="value" id="kpiActualNet">₺0</div>
           <div class="kpi-note" id="kpiActualNetNote">Tahsil edilen belediye geliri (şirket ücreti düşülmüş) − tüm Telekom giderleri − yatırım</div>
           <div class="delta" id="kpiActualNetDelta"></div>
         </article>
-        <article class="card col-3">
-          <div class="label">Başabaş (Tüm Dönem)</div>
+        <article class="card col-4 fill-row">
+          <div class="label">Başabaş <span class="scope-badge">Tüm dönem · yıl seçiminden bağımsız</span></div>
           <div class="value" id="kpiBreakEven">—</div>
           <div class="kpi-note" id="kpiBreakEvenNote"></div>
+          <div class="kpi-note" id="kpiInvestmentNote"></div>
           <div class="delta neutral" id="kpiBreakEvenDelta"></div>
         </article>
-        <article class="card col-3">
-          <div class="label">Yatırım Maliyeti (Kurulum)</div>
-          <div class="value" id="kpiInvestment">₺0</div>
-          <div class="kpi-note">Tek seferlik kurulum; KAREL Elektronik San. ve Tic. A.Ş.</div>
-          <div class="delta neutral" id="kpiInvestmentDelta"></div>
-        </article>
+        <details class="glossary-details">
+          <summary>Terimler: brüt belediye payından net kâr/zarara nasıl ulaşılır?</summary>
+          <div class="glossary">
+            <div class="glossary-step"><strong>Brüt belediye payı</strong><span>Net ceza tutarının %30'u</span></div>
+            <div class="glossary-op">− şirket ücreti</div>
+            <div class="glossary-step"><strong>Belediye geliri</strong><span>Şirket ücreti (KDV dahil) düşülmüş</span></div>
+            <div class="glossary-op">− Telekom</div>
+            <div class="glossary-step"><strong>Net katkı</strong><span>Telekom gideri de düşülmüş aylık sonuç</span></div>
+            <div class="glossary-op">− yatırım</div>
+            <div class="glossary-step is-final"><strong>Net kâr/zarar</strong><span>Kurulum yatırımı da düşülmüş sonuç</span></div>
+          </div>
+        </details>
 
         <div class="kpi-section-label">Tahsilat</div>
-        <article class="card col-3">
-          <div class="label">Tahsilat Oranı</div>
-          <div class="value" id="kpiCollectionRate">%0</div>
-          <div class="kpi-note" id="kpiCollectionRateNote">Tahsil edilen belediye gelirinin toplam belediye gelirine oranı</div>
-          <div class="delta neutral" id="kpiCollectionRateDelta"></div>
+        <article class="card col-8 fill-row">
+          <div class="label">Tahsilat Durumu</div>
+          <div class="collection-head">
+            <div class="value" id="kpiCollectionRate">%0</div>
+            <div class="delta neutral" id="kpiCollectionRateDelta"></div>
+          </div>
+          <div class="status-track" id="collectionTrack" role="img">
+            <div class="status-segment-paid" id="collectionPaidBar"></div>
+            <div class="status-segment-unpaid" id="collectionUnpaidBar"></div>
+          </div>
+          <div class="collection-split">
+            <div>
+              <div class="collection-name"><i class="dot good"></i>Tahsil edilen</div>
+              <div class="collection-amount" id="kpiPaidMunicipalNet">₺0</div>
+              <div class="delta" id="kpiPaidMunicipalNetDelta"></div>
+            </div>
+            <div>
+              <div class="collection-name"><i class="dot warn"></i>Bekleyen</div>
+              <div class="collection-amount" id="kpiUnpaidMunicipalNet">₺0</div>
+              <div class="delta" id="kpiUnpaidMunicipalNetDelta"></div>
+            </div>
+          </div>
+          <div class="kpi-note" id="kpiCollectionRateNote">Belediye geliri bazında (şirket ücreti düşülmüş); oran, tahsil edilenin toplam belediye gelirine payıdır</div>
         </article>
-        <article class="card col-3">
-          <div class="label">Tahsil Edilen Belediye Geliri</div>
-          <div class="value" id="kpiPaidMunicipalNet">₺0</div>
-          <div class="kpi-note">Ödenmiş aylar; şirket ücreti düşülmüş</div>
-          <div class="delta" id="kpiPaidMunicipalNetDelta"></div>
-        </article>
-        <article class="card col-3">
-          <div class="label">Bekleyen Belediye Geliri</div>
-          <div class="value" id="kpiUnpaidMunicipalNet">₺0</div>
-          <div class="kpi-note">Ödenmemiş aylar; şirket ücreti düşülmüş</div>
-          <div class="delta" id="kpiUnpaidMunicipalNetDelta"></div>
-        </article>
-        <article class="card col-3">
+        <article class="card col-4 fill-row">
           <div class="label">Son Ödeme</div>
           <div class="value" id="kpiLastPayment">—</div>
           <div class="kpi-note" id="kpiLastPaymentNote"></div>
@@ -997,46 +1229,35 @@
             <span class="hint">Tüm dönem · yıl seçiminden bağımsız</span>
           </div>
           <div style="position: relative;">
-            <canvas id="breakEvenChart" aria-label="Yatırım dahil kümülatif beklenen ve tahsilat bazlı net kâr/zarar"></canvas>
+            <canvas id="breakEvenChart" role="img" aria-label="Yatırım dahil kümülatif beklenen ve tahsilat bazlı net kâr/zarar"></canvas>
             <div id="breakEvenChartTooltip" class="custom-tooltip"></div>
           </div>
           <p class="chart-explanation" id="breakEvenExplanation"></p>
         </article>
       </section>
 
-      <section class="grid full-grid">
+      <section class="grid balanced-grid">
         <article class="chart-panel">
           <div class="panel-head">
             <h2>Brüt paydan net kâr/zarara köprü</h2>
             <span class="hint">Seçili yıl · milyon TL</span>
           </div>
           <div style="position: relative;">
-            <canvas id="bridgeChart" aria-label="Brüt belediye payından beklenen ve tahsilat bazlı net kâr/zarara maliyet köprüsü"></canvas>
+            <canvas id="bridgeChart" role="img" aria-label="Brüt belediye payından beklenen ve tahsilat bazlı net kâr/zarara maliyet köprüsü"></canvas>
             <div id="bridgeChartTooltip" class="custom-tooltip"></div>
           </div>
           <p class="chart-explanation"><strong>Nasıl okunur:</strong> Soldan sağa brüt belediye payından şirket ücreti, Telekom ve yatırım düşülerek beklenen net kâr/zarara ulaşılır. Son adımda henüz tahsil edilmemiş belediye geliri çıkarılır; kalan, bugüne kadar fiilen tahsil edilenle oluşan sonuçtur.</p>
         </article>
-      </section>
-
-      <section class="grid balanced-grid">
         <article class="chart-panel">
           <div class="panel-head">
             <h2>Aylık net katkı</h2>
             <span class="hint">Telekom sonrası · yatırım hariç</span>
           </div>
           <div style="position: relative;">
-            <canvas id="trendChart"></canvas>
+            <canvas id="trendChart" role="img" aria-label="Aylık net katkı çizgi grafiği; değerler aşağıdaki aylık detay tablosunda"></canvas>
             <div id="trendChartTooltip" class="custom-tooltip"></div>
           </div>
           <p class="chart-explanation"><strong>Nasıl okunur:</strong> Her nokta bir ayın belediye geliri eksi Telekom giderini gösterir. Kırmızı noktalar gideri gelirinden yüksek olan aylardır.</p>
-        </article>
-        <article class="chart-panel small">
-          <div class="panel-head">
-            <h2>Ödenme durumu</h2>
-            <span class="hint">Belediye geliri · şirket ücreti sonrası</span>
-          </div>
-          <div id="statusVisual" class="status-visual"></div>
-          <p class="chart-explanation"><strong>Nasıl okunur:</strong> Seçili dönemde belediyeye ödenmiş ve ödeme bekleyen ayların belediye geliri. Tutarlar KPI kartlarıyla aynı bazdadır.</p>
         </article>
       </section>
 
@@ -1047,7 +1268,7 @@
             <span class="hint">Yıl seçiminden bağımsız</span>
           </div>
           <div style="position: relative;">
-            <canvas id="yoyChart"></canvas>
+            <canvas id="yoyChart" role="img" aria-label="Yıllara göre yıl içi kümülatif net katkı çizgi grafiği"></canvas>
             <div id="yoyChartTooltip" class="custom-tooltip"></div>
           </div>
           <p class="chart-explanation"><strong>Nasıl okunur:</strong> Her çizgi bir yılın Ocak'tan itibaren biriken net katkısıdır; aynı aydaki yükseklik farkı yıllar arası farkı verir. 2023 yalnızca Telekom gideri içerdiği için gösterilmez.</p>
@@ -1058,7 +1279,7 @@
             <span class="hint">Aylık operasyon</span>
           </div>
           <div style="position: relative;">
-            <canvas id="volumeChart"></canvas>
+            <canvas id="volumeChart" role="img" aria-label="Aylık ceza adedi çubukları ve iptal oranı çizgisi; değerler aşağıdaki aylık detay tablosunda"></canvas>
             <div id="volumeChartTooltip" class="custom-tooltip"></div>
           </div>
           <p class="chart-explanation"><strong>Nasıl okunur:</strong> Çubuklar aylık ceza adedini (sol eksen), çizgi iptal edilen cezaların oranını (sağ eksen) gösterir. En yüksek iptal oranı işaretlenmiştir.</p>
@@ -1071,17 +1292,17 @@
             <h2>Aylık detay</h2>
             <span class="hint" id="rowCount"></span>
           </div>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button id="exportCsv" type="button" style="background: var(--brand); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <div class="table-actions">
+            <button id="exportCsv" type="button" class="btn btn-csv">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Dışa Aktar (CSV)
             </button>
-            <button id="exportExcel" type="button" style="background: #16a34a; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+            <button id="exportExcel" type="button" class="btn btn-excel">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
               Dışa Aktar (Excel)
             </button>
-            <button id="printReport" type="button" title="Antetli rapor olarak yazdır veya PDF olarak kaydet" style="background: #1b2152; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            <button id="printReport" type="button" title="Antetli rapor olarak yazdır veya PDF olarak kaydet" class="btn btn-print">
+              <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
               Yazdır / PDF
             </button>
           </div>
@@ -1095,10 +1316,10 @@
             <tfoot id="detailTotals"></tfoot>
           </table>
         </div>
-        <div class="table-footnote" style="margin-top: 16px; padding: 12px 16px; background: #f0f9ff; border-left: 4px solid #0284c7; border-radius: 4px; font-size: 12.5px; color: #0369a1; display: flex; gap: 10px; align-items: flex-start; line-height: 1.5; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-          <svg style="flex-shrink: 0; margin-top: 2px;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div class="table-footnote">
+          <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
           <div>
-            <strong>Bilgilendirme:</strong> * Haziran 2023 itibariyle, sistemin testlere başlaması, TSE onay işlemleri ve EGM'ne verilerin doğruluğunun sunulması için internet veri akışı başlatılmıştır. (Haziran - Aralık 2023 dönemindeki Telekom internet giderlerinin nedenidir.)
+            <strong>Bilgilendirme:</strong> Haziran 2023 itibarıyla sistemin testlere başlaması, TSE onay işlemleri ve EGM'ye verilerin doğruluğunun sunulması için internet veri akışı başlatılmıştır; Haziran–Aralık 2023 dönemindeki Telekom giderlerinin nedeni budur.
           </div>
         </div>
       </section>
@@ -1162,7 +1383,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
     function parsePeriod(period) {
       const [m, yy] = period.split(".");
       const year = 2000 + Number(yy);
-      return { year, month: monthMap[m], label: `${m}.${yy}`, sort: year * 12 + monthMap[m] };
+      return { year, month: monthMap[m], sort: year * 12 + monthMap[m] };
     }
 
     function parseRows(raw) {
@@ -1184,7 +1405,8 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
           netPenalty: parseNumber(rec["Toplam Ceza Para Miktarı Net"]),
           grossMunicipal: parseNumber(rec["Belediyeye Ödenecek Brüt Para Miktarı (%30)"]),
           status: rec["Belediyeye Ödenme Durumu"] || "Ceza kaydı yok",
-          paymentDate: rec["Ödenme Tarihi"],
+          // "6.10.2025" ve "09.07.2026" gibi karışık yazımlar tek biçime getirilir.
+          paymentDate: rec["Ödenme Tarihi"].split(".").map((part, i) => part && i < 2 ? part.padStart(2, "0") : part).join("."),
           companyVat: parseNumber(rec["Şirkete Ödenecek Toplam Ücret  (%20 KDV Dahil)"]),
           municipalIncome: parseNumber(rec["Belediye Gelir"]),
           telecom: parseNumber(rec["Türk Telekom Fatura"]),
@@ -1195,12 +1417,16 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
 
     const data = parseRows(rawData);
     const hasOperationalData = row => row.totalCount || row.netPenalty || row.grossMunicipal || row.municipalIncome;
-    const money = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Intl kısa tire ("-₺") üretir; grafik ve notlardaki tipografik eksiyle ("−₺") aynı olsun.
+    const moneyFormat = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const money = { format: value => moneyFormat.format(value).replace("-", "−") };
     const number = new Intl.NumberFormat("tr-TR");
     // Şirket ücreti, belediye payı ödenen dönemlerle birlikte ödenir; sınır en son ödenen dönemden türetilir.
     const LAST_PAID_ROW = data.filter(r => r.status === "Ödendi").sort((a, b) => b.sort - a.sort)[0];
     const COMPANY_PAID_THROUGH_SORT = LAST_PAID_ROW ? LAST_PAID_ROW.sort : -Infinity;
     const INVESTMENT_COST = 37601951.98;
+    // Veri tablosu her güncellendiğinde bu tarih de elle güncellenir (gg.aa.yyyy).
+    const DATA_UPDATED = "11.11.2026";
     const INVESTMENT_YEAR = 2023;
     const fullMonthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
     const periodName = row => `${fullMonthNames[row.month]} ${row.year}`;
@@ -1285,8 +1511,6 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       el.className = className;
     }
 
-
-
     const AUTH_USER = "ulasim";
     const AUTH_PASS = "ulasim";
 
@@ -1342,7 +1566,6 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
     let prevValues = {
       expectedNet: 0,
       actualNet: 0,
-      investment: 0,
       collectionRate: 0,
       paidMunicipal: 0,
       unpaidMunicipal: 0,
@@ -1351,9 +1574,26 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       telecom: 0
     };
 
+    // Grafik renkleri; tuval CSS değişkenlerini okumadığı için tema başına ayrı tutulur.
+    const CHART_THEMES = {
+      light: {
+        grid: "#e4e9f0", axis: "#667085", axisAlt: "#64748b", muted: "#94a3b8", teal: "#0f766e", negative: "#b42318",
+        bar: "#155e75", warnText: "#93370d", amber: "#b45309", ink: "#475467", deltaFill: "#fef3c7", checkFill: "#ccfbf1",
+        totalFill: "#e2e8f0", valueText: "#344054", connector: "#98a2b3", strong: "#1e293b", cyan: "#0e7490", indigo: "#31377e"
+      },
+      dark: {
+        grid: "#2b3548", axis: "#9aa5b8", axisAlt: "#8794a8", muted: "#6b778c", teal: "#2dd4bf", negative: "#f2877d",
+        bar: "#2a9cc0", warnText: "#f5b066", amber: "#f0a33a", ink: "#c3cbd8", deltaFill: "#3a2c14", checkFill: "#10352f",
+        totalFill: "#2b3548", valueText: "#e6eaf2", connector: "#5d6a80", strong: "#e6eaf2", cyan: "#38bdf8", indigo: "#a5b4fc"
+      }
+    };
+    let C = CHART_THEMES.light;
+    // Yazdırma görüntüsü için tuvali ekran yoğunluğundan bağımsız, keskin çizdirir.
+    let chartPixelRatio = 0;
+
     function drawChart(canvasId, config) {
       const canvas = document.getElementById(canvasId);
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = chartPixelRatio || window.devicePixelRatio || 1;
       const rect = canvas.getBoundingClientRect();
       canvas.width = Math.max(1, Math.floor(rect.width * dpr));
       canvas.height = Math.max(1, Math.floor(rect.height * dpr));
@@ -1364,7 +1604,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
     }
 
     function chartFrame(ctx, w, h, pad) {
-      ctx.strokeStyle = "#e4e9f0";
+      ctx.strokeStyle = C.grid;
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (let i = 0; i <= 4; i++) {
@@ -1423,7 +1663,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         const x = i => pad.left + ((w - pad.left - pad.right) / Math.max(rows.length - 1, 1)) * i;
         const y = v => pad.top + (max - v) / (max - min || 1) * (h - pad.top - pad.bottom);
         chartFrame(ctx, w, h, pad);
-        ctx.fillStyle = "#667085";
+        ctx.fillStyle = C.axis;
         ctx.font = "12px Segoe UI";
         for (let i = 0; i <= 4; i++) {
           const value = max - ((max - min) / 4) * i;
@@ -1432,30 +1672,30 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         if (min < 0) {
           ctx.save();
           ctx.setLineDash([4, 4]);
-          ctx.strokeStyle = "#94a3b8";
+          ctx.strokeStyle = C.muted;
           ctx.beginPath();
           ctx.moveTo(pad.left, y(0));
           ctx.lineTo(w - pad.right, y(0));
           ctx.stroke();
           ctx.restore();
         }
-        // Filtre ardışık olmayan aylar bıraktığında (ör. yalnızca "Ödendi") boşluğun üzerinden çizgi çekme.
+        // Ardışık olmayan aylar arasında boşluğun üzerinden çizgi çekme.
         ctx.beginPath();
         rows.forEach((r, i) => {
           const px = x(i), py = y(r.netIncome);
           const continues = i > 0 && r.sort === rows[i - 1].sort + 1;
           if (continues) ctx.lineTo(px, py); else ctx.moveTo(px, py);
         });
-        ctx.strokeStyle = "#0f766e";
+        ctx.strokeStyle = C.teal;
         ctx.lineWidth = 3;
         ctx.stroke();
         rows.forEach((r, i) => {
           ctx.beginPath();
           ctx.arc(x(i), y(r.netIncome), 4, 0, Math.PI * 2);
-          ctx.fillStyle = r.netIncome >= 0 ? "#0f766e" : "#b42318";
+          ctx.fillStyle = r.netIncome >= 0 ? C.teal : C.negative;
           ctx.fill();
         });
-        ctx.fillStyle = "#667085";
+        ctx.fillStyle = C.axis;
         rows.forEach((r, i) => {
           if (rows.length <= 13 || i % Math.ceil(rows.length / 9) === 0) {
             ctx.save();
@@ -1473,36 +1713,6 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       });
     }
 
-    function drawStatusChart(rows) {
-      const paidRows = rows.filter(r => r.status === "Ödendi");
-      const unpaidRows = rows.filter(r => r.status === "Ödenmedi");
-      const paid = sum(paidRows, "municipalIncome");
-      const unpaid = sum(unpaidRows, "municipalIncome");
-      const total = paid + unpaid;
-      const paidPct = total ? paid / total * 100 : 0;
-      const unpaidPct = total ? unpaid / total * 100 : 0;
-      const target = document.getElementById("statusVisual");
-      target.innerHTML = `
-        <div class="status-total">
-          <div><span>Toplam belediye geliri</span><strong>${money.format(total)}</strong></div>
-          <div class="status-meta">${paidRows.length + unpaidRows.length} ay</div>
-        </div>
-        <div class="status-track" aria-label="Ödenme durumu dağılımı">
-          <div class="status-segment-paid" style="width:${paidPct}%"></div>
-          <div class="status-segment-unpaid" style="width:${unpaidPct}%"></div>
-        </div>
-        <div class="status-rows">
-          <div class="status-row">
-            <div><span><i class="dot good"></i></span><span class="status-name">Ödendi</span><div class="status-meta">${paidRows.length} ay · %${decimal(paidPct)}</div></div>
-            <div class="status-value">${money.format(paid)}</div>
-          </div>
-          <div class="status-row">
-            <div><span><i class="dot warn"></i></span><span class="status-name">Ödenmedi</span><div class="status-meta">${unpaidRows.length} ay · %${decimal(unpaidPct)}</div></div>
-            <div class="status-value">${money.format(unpaid)}</div>
-          </div>
-        </div>`;
-    }
-
     function drawVolumeChart(rows) {
       drawChart("volumeChart", (ctx, w, h) => {
         const pad = { left: 50, right: 46, top: 40, bottom: 38 };
@@ -1518,10 +1728,10 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         ctx.font = "11px Segoe UI";
         for (let i = 0; i <= 4; i++) {
           const yy = pad.top + plotH / 4 * i + 4;
-          ctx.fillStyle = "#667085";
+          ctx.fillStyle = C.axis;
           ctx.textAlign = "left";
           ctx.fillText(number.format(Math.round(max - max / 4 * i)), 4, yy);
-          ctx.fillStyle = "#93370d";
+          ctx.fillStyle = C.warnText;
           ctx.textAlign = "right";
           ctx.fillText(`%${decimal(rateMax - rateMax / 4 * i)}`, w - 4, yy);
         }
@@ -1530,7 +1740,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         const barW = Math.max(3, band * .62);
         rows.forEach((r, i) => {
           const barH = (r.totalCount / max) * plotH;
-          ctx.fillStyle = "#155e75";
+          ctx.fillStyle = C.bar;
           ctx.fillRect(cx(i) - barW / 2, h - pad.bottom - barH, barW, barH);
         });
 
@@ -1539,7 +1749,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
           const continues = i > 0 && r.sort === rows[i - 1].sort + 1;
           if (continues) ctx.lineTo(cx(i), yRate(rates[i])); else ctx.moveTo(cx(i), yRate(rates[i]));
         });
-        ctx.strokeStyle = "#b45309";
+        ctx.strokeStyle = C.amber;
         ctx.lineWidth = 2;
         ctx.stroke();
 
@@ -1548,16 +1758,16 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
           const px = cx(peak), py = yRate(rates[peak]);
           ctx.beginPath();
           ctx.arc(px, py, 4.5, 0, Math.PI * 2);
-          ctx.fillStyle = "#b45309";
+          ctx.fillStyle = C.amber;
           ctx.fill();
           ctx.font = "700 11px Segoe UI";
-          ctx.fillStyle = "#93370d";
+          ctx.fillStyle = C.warnText;
           ctx.textAlign = px > w * .7 ? "right" : "left";
           ctx.fillText(`${rows[peak].label}: %${decimal(rates[peak])}`, px + (px > w * .7 ? -8 : 8), Math.max(pad.top + 10, py - 6));
           ctx.textAlign = "left";
         }
 
-        ctx.fillStyle = "#667085";
+        ctx.fillStyle = C.axis;
         ctx.font = "11px Segoe UI";
         ctx.textAlign = "center";
         const step = Math.ceil(rows.length / 8);
@@ -1569,12 +1779,12 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         const totalCount = sum(rows, "totalCount");
         const cancelRate = totalCount ? sum(rows, "cancelledCount") / totalCount * 100 : 0;
         ctx.font = "12px Segoe UI";
-        ctx.fillStyle = "#155e75";
+        ctx.fillStyle = C.bar;
         ctx.fillRect(pad.left, 11, 10, 10);
-        ctx.fillStyle = "#475467";
+        ctx.fillStyle = C.ink;
         ctx.fillText(`Ceza adedi  ${number.format(totalCount)}`, pad.left + 16, 20);
         const lx = pad.left + 16 + ctx.measureText(`Ceza adedi  ${number.format(totalCount)}`).width + 22;
-        ctx.strokeStyle = "#b45309";
+        ctx.strokeStyle = C.amber;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(lx, 16);
@@ -1628,7 +1838,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
 
         chartFrame(ctx, w, h, pad);
         ctx.font = "11px Segoe UI";
-        ctx.fillStyle = "#667085";
+        ctx.fillStyle = C.axis;
         for (let i = 0; i <= 4; i++) {
           const value = max - ((max - min) / 4) * i;
           ctx.fillText(moneyMillions(value, 0), 7, pad.top + plotH / 4 * i + 4);
@@ -1637,7 +1847,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         if (min < 0 && max > 0) {
           ctx.save();
           ctx.setLineDash([5, 4]);
-          ctx.strokeStyle = "#64748b";
+          ctx.strokeStyle = C.axisAlt;
           ctx.beginPath();
           ctx.moveTo(pad.left, y(0));
           ctx.lineTo(w - pad.right, y(0));
@@ -1651,12 +1861,11 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
           const bottomY = y(Math.min(item.start, item.end));
           const height = Math.max(2, bottomY - topY);
           if (index > 0 && item.type === "delta") {
-            const previous = items[index - 1];
             const connectorY = y(item.start);
             const previousX = pad.left + band * (index - 1) + band / 2 + barW / 2;
             ctx.save();
             ctx.setLineDash([3, 3]);
-            ctx.strokeStyle = "#98a2b3";
+            ctx.strokeStyle = C.connector;
             ctx.beginPath();
             ctx.moveTo(previousX, connectorY);
             ctx.lineTo(cx - barW / 2, connectorY);
@@ -1665,26 +1874,26 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
           }
 
           if (item.type === "delta") {
-            ctx.fillStyle = "#fef3c7";
-            ctx.strokeStyle = "#b45309";
+            ctx.fillStyle = C.deltaFill;
+            ctx.strokeStyle = C.amber;
           } else if (item.type === "checkpoint") {
-            ctx.fillStyle = "#ccfbf1";
-            ctx.strokeStyle = "#0f766e";
+            ctx.fillStyle = C.checkFill;
+            ctx.strokeStyle = C.teal;
           } else {
-            ctx.fillStyle = "#e2e8f0";
-            ctx.strokeStyle = "#475467";
+            ctx.fillStyle = C.totalFill;
+            ctx.strokeStyle = C.ink;
           }
           ctx.lineWidth = 1.5;
           ctx.fillRect(cx - barW / 2, topY, barW, height);
           ctx.strokeRect(cx - barW / 2, topY, barW, height);
 
-          ctx.fillStyle = item.value < 0 ? "#93370d" : "#344054";
+          ctx.fillStyle = item.value < 0 ? C.warnText : C.valueText;
           ctx.font = "700 10px Segoe UI";
           const valueY = item.end >= item.start ? Math.max(13, topY - 7) : Math.min(h - pad.bottom - 4, bottomY + 14);
           ctx.textAlign = "center";
           ctx.fillText(`${item.value < 0 ? "−" : ""}${decimal(Math.abs(item.value) / 1000000)}`, cx, valueY);
 
-          ctx.fillStyle = "#475467";
+          ctx.fillStyle = C.ink;
           ctx.font = "11px Segoe UI";
           if (narrow) {
             ctx.save();
@@ -1723,8 +1932,8 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         const y = value => pad.top + (max - value) / (max - min) * plotH;
 
         const legendItems = [
-          { label: "Beklenen net kâr/zarar", color: "#0f766e", dashed: false },
-          { label: "Tahsilat bazlı net kâr/zarar", color: "#475467", dashed: true }
+          { label: "Beklenen net kâr/zarar", color: C.teal, dashed: false },
+          { label: "Tahsilat bazlı net kâr/zarar", color: C.ink, dashed: true }
         ];
         let legendX = pad.left;
         legendItems.forEach(item => {
@@ -1737,14 +1946,14 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
           ctx.lineTo(legendX + 24, 20);
           ctx.stroke();
           ctx.restore();
-          ctx.fillStyle = "#475467";
+          ctx.fillStyle = C.ink;
           ctx.font = "11px Segoe UI";
           ctx.fillText(item.label, legendX + 31, 24);
           legendX += 31 + ctx.measureText(item.label).width + 24;
         });
 
         chartFrame(ctx, w, h, pad);
-        ctx.fillStyle = "#667085";
+        ctx.fillStyle = C.axis;
         ctx.font = "11px Segoe UI";
         for (let i = 0; i <= 4; i++) {
           const value = max - ((max - min) / 4) * i;
@@ -1753,13 +1962,13 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
 
         ctx.save();
         ctx.setLineDash([5, 4]);
-        ctx.strokeStyle = "#64748b";
+        ctx.strokeStyle = C.axisAlt;
         ctx.beginPath();
         ctx.moveTo(pad.left, y(0));
         ctx.lineTo(w - pad.right, y(0));
         ctx.stroke();
         ctx.restore();
-        ctx.fillStyle = "#475467";
+        ctx.fillStyle = C.ink;
         ctx.font = "700 10px Segoe UI";
         ctx.fillText("BAŞABAŞ", pad.left + 4, y(0) - 7);
 
@@ -1769,7 +1978,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
           const px = x(index), py = y(point.expected);
           if (index === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
         });
-        ctx.strokeStyle = "#0f766e";
+        ctx.strokeStyle = C.teal;
         ctx.lineWidth = 3;
         ctx.stroke();
         ctx.restore();
@@ -1781,7 +1990,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
           const px = x(index), py = y(point.actual);
           if (index === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
         });
-        ctx.strokeStyle = "#475467";
+        ctx.strokeStyle = C.ink;
         ctx.lineWidth = 2.5;
         ctx.stroke();
         ctx.restore();
@@ -1790,13 +1999,13 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
           if (index === expectedBreakEvenIndex || index === points.length - 1) {
             ctx.beginPath();
             ctx.arc(x(index), y(point.expected), 4.5, 0, Math.PI * 2);
-            ctx.fillStyle = index === expectedBreakEvenIndex ? "#b45309" : "#0f766e";
+            ctx.fillStyle = index === expectedBreakEvenIndex ? C.amber : C.teal;
             ctx.fill();
           }
           if (index === actualBreakEvenIndex || index === points.length - 1) {
             ctx.beginPath();
             ctx.arc(x(index), y(point.actual), 4.5, 0, Math.PI * 2);
-            ctx.fillStyle = index === actualBreakEvenIndex ? "#b45309" : "#475467";
+            ctx.fillStyle = index === actualBreakEvenIndex ? C.amber : C.ink;
             ctx.fill();
           }
         });
@@ -1806,13 +2015,13 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
           const by = y(points[expectedBreakEvenIndex].expected);
           ctx.save();
           ctx.setLineDash([3, 3]);
-          ctx.strokeStyle = "#b45309";
+          ctx.strokeStyle = C.amber;
           ctx.beginPath();
           ctx.moveTo(bx, by);
           ctx.lineTo(bx, h - pad.bottom);
           ctx.stroke();
           ctx.restore();
-          ctx.fillStyle = "#93370d";
+          ctx.fillStyle = C.warnText;
           ctx.font = "700 11px Segoe UI";
           ctx.textAlign = bx > w * .72 ? "right" : "left";
           ctx.fillText(`Beklenen başabaş: ${points[expectedBreakEvenIndex].label}`, bx + (bx > w * .72 ? -7 : 7), Math.max(pad.top + 12, by - 10));
@@ -1823,14 +2032,14 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         if (finalPoint) {
           ctx.font = "700 10px Segoe UI";
           ctx.textAlign = "right";
-          ctx.fillStyle = "#0f766e";
+          ctx.fillStyle = C.teal;
           ctx.fillText(`Beklenen ${moneyMillions(finalPoint.expected)}`, x(points.length - 1) - 7, Math.max(pad.top + 10, y(finalPoint.expected) - 9));
-          ctx.fillStyle = "#475467";
+          ctx.fillStyle = C.ink;
           ctx.fillText(`Tahsilat bazlı ${moneyMillions(finalPoint.actual)}`, x(points.length - 1) - 7, Math.min(h - pad.bottom - 4, y(finalPoint.actual) + 15));
           ctx.textAlign = "left";
         }
 
-        ctx.fillStyle = "#667085";
+        ctx.fillStyle = C.axis;
         ctx.font = "11px Segoe UI";
         const tickIndexes = [...new Set([0, ...points.map((_, index) => index).filter(index => data[index].month === 0), points.length - 1])];
         tickIndexes.forEach(index => {
@@ -1851,10 +2060,10 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         // Yalnızca ceza verisi olan yıllar; 2023 sadece Telekom gideri içerdiğinden karşılaştırmaya katılmaz.
         const years = [...new Set(data.filter(hasOperationalData).map(r => r.year))].sort((a, b) => a - b);
         const latestYear = years[years.length - 1];
-        const olderColors = ["#0e7490", "#31377e", "#0f766e", "#94a3b8"];
+        const olderColors = [C.cyan, C.indigo, C.teal, C.muted];
         const yearColors = {};
         years.forEach((yr, i) => {
-          yearColors[yr] = yr === latestYear ? "#b45309" : olderColors[i % olderColors.length];
+          yearColors[yr] = yr === latestYear ? C.amber : olderColors[i % olderColors.length];
         });
 
         const yoyData = {};
@@ -1866,7 +2075,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
             yoyData[yr][r.month] = running;
           });
         });
-        
+
         let min = 0;
         let max = 1;
         years.forEach(yr => {
@@ -1877,19 +2086,19 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
             }
           });
         });
-        
+
         chartFrame(ctx, w, h, pad);
-        
-        ctx.fillStyle = "#64748b";
-        ctx.font = "11px Inter, sans-serif";
+
+        ctx.fillStyle = C.axisAlt;
+        ctx.font = "11px Segoe UI";
         for (let i = 0; i <= 4; i++) {
           const value = max - ((max - min) / 4) * i;
           ctx.fillText(moneyMillions(value), 8, pad.top + ((h - pad.top - pad.bottom) / 4) * i + 4);
         }
-        
+
         const x = m => pad.left + ((w - pad.left - pad.right) / 11) * m;
         const y = v => pad.top + (max - v) / (max - min || 1) * (h - pad.top - pad.bottom);
-        
+
         years.forEach(yr => {
           let started = false;
           ctx.beginPath();
@@ -1914,7 +2123,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
             ctx.setLineDash([]);
           }
           ctx.stroke();
-          
+
           ctx.setLineDash([]);
           for (let m = 0; m < 12; m++) {
             const val = yoyData[yr][m];
@@ -1926,18 +2135,18 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
             }
           }
         });
-        
-        ctx.fillStyle = "#64748b";
+
+        ctx.fillStyle = C.axisAlt;
         monthNames.forEach((name, m) => {
           ctx.fillText(name, x(m) - 10, h - 16);
         });
-        
+
         let lx = pad.left;
         years.forEach(yr => {
           ctx.fillStyle = yearColors[yr];
           ctx.fillRect(lx, 15, 10, 10);
-          ctx.fillStyle = "#1e293b";
-          ctx.font = "bold 11px Inter, sans-serif";
+          ctx.fillStyle = C.strong;
+          ctx.font = "700 11px Segoe UI";
           ctx.fillText(yr.toString(), lx + 14, 24);
           lx += 60;
         });
@@ -1975,9 +2184,15 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       return Object.fromEntries(DETAIL_COLUMNS.filter(c => c.type !== "text").map(c => [c.key, sum(rows, c.key)]));
     }
 
+    // Başlıklar klavyeyle de kullanılabilsin diye düğme; sıralama yönü aria-sort ile duyurulur.
     function renderDetailHead() {
-      document.getElementById("detailHead").innerHTML = DETAIL_COLUMNS
-        .map(c => `<th class="sort-header" data-sort-key="${c.sortKey || c.key}">${c.label}</th>`).join("");
+      document.getElementById("detailHead").innerHTML = DETAIL_COLUMNS.map(c => {
+        const key = c.sortKey || c.key;
+        const active = currentSort.key === key;
+        const state = active ? (currentSort.asc ? "ascending" : "descending") : "none";
+        const arrow = active ? `<span aria-hidden="true"> ${currentSort.asc ? "▲" : "▼"}</span>` : "";
+        return `<th class="sort-header" aria-sort="${state}"><button type="button" class="sort-button" data-sort-key="${key}">${c.label}${arrow}</button></th>`;
+      }).join("");
     }
 
     function downloadBlob(blob, filename) {
@@ -1991,28 +2206,118 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       setTimeout(() => URL.revokeObjectURL(url), 0);
     }
 
-    const exportFileName = ext => `EDS_Gelir_Raporu_${new Date().toISOString().slice(0, 10)}.${ext}`;
+    // toISOString UTC'ye çevirir; gece yarısından sonraki ilk saatlerde bir önceki günü verir.
+    const exportFileName = ext => {
+      const now = new Date();
+      const stamp = [now.getFullYear(), now.getMonth() + 1, now.getDate()].map(part => String(part).padStart(2, "0")).join("-");
+      return `EDS_Gelir_Raporu_${stamp}.${ext}`;
+    };
 
     function exportToCsv() {
       // ";" ayraçlı CSV'yi Türkçe Excel açar; ondalık ayracı da virgül olmalı, binlik ayracı olmamalı.
       const csvNumber = value => value.toLocaleString("tr-TR", { useGrouping: false, maximumFractionDigits: 2 });
       const csvRows = [
         DETAIL_COLUMNS.map(c => c.label).join(";"),
-        ...selectedRows().map(r => DETAIL_COLUMNS.map(c => c.type === "text" ? (r[c.key] || "") : csvNumber(r[c.key])).join(";"))
+        ...sortForTable(selectedRows()).map(r => DETAIL_COLUMNS.map(c => c.type === "text" ? (r[c.key] || "") : csvNumber(r[c.key])).join(";"))
       ];
       downloadBlob(new Blob(["\uFEFF" + csvRows.join("\n")], { type: "text/csv;charset=utf-8;" }), exportFileName("csv"));
     }
 
-    function exportToExcel() {
+    // Excel kitaplığı (~900 KB) yalnızca dışa aktarma istendiğinde yüklenir; sayfa açılışını bekletmez.
+    const XLSX_URL = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    let xlsxLoading = null;
+
+    function loadXlsx() {
+      if (window.XLSX) return Promise.resolve();
+      xlsxLoading ??= new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = XLSX_URL;
+        script.onload = resolve;
+        script.onerror = () => {
+          xlsxLoading = null;
+          script.remove();
+          reject(new Error("XLSX yüklenemedi"));
+        };
+        document.head.appendChild(script);
+      });
+      return xlsxLoading;
+    }
+
+    async function exportToExcel() {
+      const button = document.getElementById("exportExcel");
+      button.disabled = true;
+      try {
+        await loadXlsx();
+      } catch {
+        alert("Excel kitaplığı yüklenemedi. İnternet bağlantınızı kontrol edin veya CSV olarak dışa aktarın.");
+        return;
+      } finally {
+        button.disabled = false;
+      }
+      const rows = selectedRows();
+      const totals = detailTotals(rows);
       const sheetRows = [
         DETAIL_COLUMNS.map(c => c.label),
-        ...selectedRows().map(r => DETAIL_COLUMNS.map(c => c.type === "text" ? (r[c.key] || "") : r[c.key]))
+        ...sortForTable(rows).map(r => DETAIL_COLUMNS.map(c => c.type === "text" ? (r[c.key] || "") : r[c.key])),
+        DETAIL_COLUMNS.map((c, i) => i === 0 ? "Toplam" : c.type === "text" ? "" : totals[c.key])
       ];
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(sheetRows);
-      ws["!cols"] = DETAIL_COLUMNS.map(c => ({ wch: Math.max(c.label.length + 4, 12) }));
+      // Hücreler sayı olarak kalır (toplanabilir); biçim yalnızca görünümü para/adet yapar.
+      const formats = { money: '"₺"#,##0.00', count: "#,##0" };
+      DETAIL_COLUMNS.forEach((c, col) => {
+        if (!formats[c.type]) return;
+        for (let row = 1; row < sheetRows.length; row++) {
+          const cell = ws[XLSX.utils.encode_cell({ r: row, c: col })];
+          if (cell && cell.t === "n") cell.z = formats[c.type];
+        }
+      });
+      ws["!cols"] = DETAIL_COLUMNS.map(c => ({ wch: Math.max(c.label.length + 4, c.type === "money" ? 19 : 12) }));
       XLSX.utils.book_append_sheet(wb, ws, "EDS Gelir Raporu");
       XLSX.writeFile(wb, exportFileName("xlsx"));
+    }
+
+    // Aylık detay raporu ve pano özeti aynı kurumsal anteti kullanır.
+    const LETTERHEAD_CSS = `
+  /* Antet ilk sayfanın başında; sonraki sayfalarda kurum adı ve sayfa numarası alt bilgide */
+  .lh {
+    display: grid;
+    grid-template-columns: 22mm 1fr 58mm;
+    align-items: center;
+    gap: 6mm;
+    padding-bottom: 3mm;
+    border-bottom: 1.4pt solid #1b2152;
+    box-shadow: 0 1.6pt 0 #c9b766;
+  }
+  .lh img { width: 20mm; height: 20mm; display: block; }
+  .lh .org { text-align: center; line-height: 1.25; }
+  .lh .org .tc { font-size: 10pt; font-weight: 700; letter-spacing: .08em; color: #1b2152; }
+  .lh .org .name { font-size: 14pt; font-weight: 800; letter-spacing: .06em; color: #1b2152; }
+  .lh .org .title { margin-top: 2mm; font-size: 10pt; font-weight: 700; color: #334155; }
+  .lh .meta { font-size: 7.5pt; line-height: 1.6; color: #334155; text-align: right; }
+  .lh .meta strong { color: #111827; }
+`;
+
+    // Yazdırılacak belgeyi gizli bir çerçevede açar; antet logosu ve grafik görüntüleri yüklenince yazdırır.
+    function printDocument(html) {
+      document.getElementById("printFrame")?.remove();
+      const frame = document.createElement("iframe");
+      frame.id = "printFrame";
+      frame.setAttribute("aria-hidden", "true");
+      frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+      document.body.appendChild(frame);
+      const doc = frame.contentDocument;
+      doc.open();
+      doc.write(html);
+      doc.close();
+      const pending = [...doc.images].filter(img => !img.complete).map(img => new Promise(resolve => {
+        img.addEventListener("load", resolve, { once: true });
+        img.addEventListener("error", resolve, { once: true });
+      }));
+      Promise.all(pending).then(() => {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+      });
     }
 
     // Aylık detayı kurumsal antetli A4 yatay sayfa olarak yazdırır; tarayıcının yazdırma penceresinden PDF de alınabilir.
@@ -2086,24 +2391,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
   tfoot { display: table-row-group; }
   tr { break-inside: avoid; }
 
-  /* Antet ilk sayfanın başında; sonraki sayfalarda kurum adı ve sayfa numarası alt bilgide */
-  .lh {
-    display: grid;
-    grid-template-columns: 22mm 1fr 58mm;
-    align-items: center;
-    gap: 6mm;
-    padding-bottom: 3mm;
-    border-bottom: 1.4pt solid #1b2152;
-    box-shadow: 0 1.6pt 0 #c9b766;
-  }
-  .lh img { width: 20mm; height: 20mm; display: block; }
-  .lh .org { text-align: center; line-height: 1.25; }
-  .lh .org .tc { font-size: 10pt; font-weight: 700; letter-spacing: .08em; color: #1b2152; }
-  .lh .org .name { font-size: 14pt; font-weight: 800; letter-spacing: .06em; color: #1b2152; }
-  .lh .org .title { margin-top: 2mm; font-size: 10pt; font-weight: 700; color: #334155; }
-  .lh .meta { font-size: 7.5pt; line-height: 1.6; color: #334155; text-align: right; }
-  .lh .meta strong { color: #111827; }
-
+  ${LETTERHEAD_CSS}
   .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 4mm 0; }
   .summary-item { border: 0.6pt solid #cbd5e1; border-radius: 1.5mm; padding: 2mm 3mm; background: #f6f7fb; }
   .summary-item span { display: block; font-size: 7pt; color: #475467; }
@@ -2175,56 +2463,140 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
 </body>
 </html>`;
 
-      document.getElementById("printFrame")?.remove();
-      const frame = document.createElement("iframe");
-      frame.id = "printFrame";
-      frame.setAttribute("aria-hidden", "true");
-      frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
-      document.body.appendChild(frame);
-      const doc = frame.contentDocument;
-      doc.open();
-      doc.write(html);
-      doc.close();
+      printDocument(html);
+    }
 
-      // Logo yüklenmeden yazdırılırsa antet boş çıkar.
-      const logo = doc.querySelector("img");
-      const go = () => {
-        frame.contentWindow.focus();
-        frame.contentWindow.print();
-      };
-      if (logo.complete) go();
-      else {
-        logo.addEventListener("load", go, { once: true });
-        logo.addEventListener("error", go, { once: true });
-      }
+    // Grafiği ekrandaki boyuttan ve temadan bağımsız olarak açık renkli, sabit boyutlu bir görüntüye çevirir.
+    // Hepsi aynı görev içinde olduğu için ekranda titreme olmaz; sonunda grafikler eski hâline çizilir.
+    function captureCharts(ids, width, height) {
+      const canvases = ids.map(id => document.getElementById(id));
+      canvases.forEach(canvas => { canvas.style.width = `${width}px`; canvas.style.height = `${height}px`; });
+      chartPixelRatio = 2;
+      drawCharts(selectedRows(), "light");
+      const images = Object.fromEntries(canvases.map(canvas => [canvas.id, canvas.toDataURL("image/png")]));
+      chartPixelRatio = 0;
+      canvases.forEach(canvas => { canvas.style.width = ""; canvas.style.height = ""; });
+      drawCharts(selectedRows());
+      return images;
+    }
+
+    // Yöneticiye götürülecek tek sayfalık özet: antet, KPI'lar, başabaş ve maliyet köprüsü grafikleri.
+    function printSummary() {
+      const rows = selectedRows();
+      const escape = text => String(text).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+      const text = id => document.getElementById(id).textContent.trim();
+      const now = new Date();
+      const printedAt = now.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" })
+        + " " + now.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+      const periodRows = rows.length ? rows : data;
+      const periodText = `${periodName(periodRows[0])} – ${periodName(periodRows[periodRows.length - 1])}`;
+      const scopeText = selectedYear === "all" ? "Tüm yıllar" : `${selectedYear} yılı`;
+      const logoUrl = new URL("assets/kutahya-belediyesi-logo.webp", location.href).href;
+      const charts = captureCharts(["breakEvenChart", "bridgeChart"], 640, 330);
+
+      // Kart değerleri animasyonun ortasında olabilir; son hesaplanan değerler kullanılır.
+      const v = prevValues;
+      const cls = value => value < 0 ? "neg" : "";
+      const kpis = [
+        ["Beklenen net kâr/zarar", money.format(v.expectedNet), text("kpiNetNote"), cls(v.expectedNet), "primary"],
+        ["Tahsilat bazlı net kâr/zarar", money.format(v.actualNet), text("kpiActualNetNote"), cls(v.actualNet), "primary"],
+        ["Beklenen başabaş (tüm dönem)", text("kpiBreakEven"), text("kpiBreakEvenDelta"), "", ""],
+        ["Tahsilat oranı", `%${decimal(v.collectionRate)}`, text("kpiCollectionRateDelta"), "", ""],
+        ["Son ödeme", text("kpiLastPayment"), text("kpiLastPaymentNote"), "", ""],
+        ["Tahsil edilen belediye geliri", money.format(v.paidMunicipal), "Ödenmiş aylar; şirket ücreti düşülmüş", "", ""],
+        ["Bekleyen belediye geliri", money.format(v.unpaidMunicipal), text("kpiUnpaidMunicipalNetDelta"), "", ""],
+        ["Toplam ceza adedi", number.format(v.totalCount), text("kpiCountNote"), "", ""],
+        ["Şirket ücreti (KDV dahil)", money.format(v.company), text("kpiCompanyVatNote"), "", ""],
+        ["Telekom gideri", money.format(v.telecom), "Veri hattı faturaları", "", ""]
+      ];
+
+      const html = `<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>EDS Ceza Gelirleri Pano Özeti - ${escape(scopeText)}</title>
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 10mm 10mm 12mm;
+    @bottom-left { content: "T.C. Kütahya Belediyesi · EDS Ceza Gelirleri Pano Özeti"; font: 7.5pt "Segoe UI", Arial, sans-serif; color: #667085; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #111827;
+    font-size: 8pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  ${LETTERHEAD_CSS}
+  .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.5mm; margin: 4mm 0; }
+  .kpi { border: 0.6pt solid #cbd5e1; border-radius: 1.5mm; padding: 2.2mm 2.8mm; background: #f6f7fb; break-inside: avoid; }
+  .kpi.primary { background: #eef3ff; border-color: #9fb3e8; }
+  .kpi span { display: block; font-size: 6.8pt; font-weight: 700; color: #475467; text-transform: uppercase; letter-spacing: .02em; }
+  .kpi strong { display: block; margin: 1mm 0 0.6mm; font-size: 11pt; font-variant-numeric: tabular-nums; }
+  .kpi.primary strong { font-size: 12.5pt; }
+  .kpi small { display: block; font-size: 6.5pt; line-height: 1.35; color: #64748b; }
+  .neg { color: #b42318; }
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+  figure { margin: 0; border: 0.6pt solid #cbd5e1; border-radius: 1.5mm; padding: 2.5mm; break-inside: avoid; }
+  figcaption { margin-bottom: 1.5mm; font-size: 8pt; font-weight: 700; color: #1b2152; }
+  figcaption em { font-style: normal; font-weight: 400; color: #64748b; }
+  figure img { display: block; width: 100%; height: auto; }
+  .notes { margin-top: 3mm; font-size: 6.8pt; line-height: 1.45; color: #475467; }
+  .notes p { margin: 0 0 0.8mm; }
+</style>
+</head>
+<body>
+  <div class="lh">
+    <img src="${logoUrl}" alt="T.C. Kütahya Belediyesi logosu">
+    <div class="org">
+      <div class="tc">T.C.</div>
+      <div class="name">KÜTAHYA BELEDİYESİ</div>
+      <div class="title">EDS Ceza Gelirleri · Pano Özeti</div>
+    </div>
+    <div class="meta">
+      <div><strong>Kapsam:</strong> ${escape(scopeText)}</div>
+      <div><strong>Dönem:</strong> ${escape(periodText)}</div>
+      <div><strong>Veri güncelleme:</strong> ${escape(DATA_UPDATED)}</div>
+      <div><strong>Rapor tarihi:</strong> ${escape(printedAt)}</div>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    ${kpis.map(([label, value, note, valueClass, boxClass]) => `<div class="kpi ${boxClass}"><span>${escape(label)}</span><strong class="${valueClass}">${escape(value)}</strong><small>${escape(note)}</small></div>`).join("")}
+  </div>
+  <div class="charts">
+    <figure>
+      <figcaption>Kümülatif net kâr/zarar ve başabaş <em>· tüm dönem</em></figcaption>
+      <img src="${charts.breakEvenChart}" alt="Kümülatif net kâr/zarar ve başabaş grafiği">
+    </figure>
+    <figure>
+      <figcaption>Brüt paydan net kâr/zarara köprü <em>· ${escape(scopeText)} · milyon TL</em></figcaption>
+      <img src="${charts.bridgeChart}" alt="Brüt belediye payından net kâr/zarara maliyet köprüsü">
+    </figure>
+  </div>
+  <div class="notes">
+    <p><strong>Başabaş:</strong> ${escape(text("kpiBreakEvenNote"))}</p>
+    <p><strong>Terimler:</strong> Brüt belediye payı net ceza tutarının %30'udur. Belediye geliri, brüt paydan şirket ücreti (KDV dahil) düşülerek; net katkı, belediye gelirinden Telekom gideri düşülerek; net kâr/zarar ise net katkıdan kurulum yatırımı düşülerek hesaplanır.</p>
+  </div>
+</body>
+</html>`;
+
+      printDocument(html);
     }
 
     function setupSorting() {
       renderDetailHead();
-      document.querySelectorAll(".sort-header").forEach(th => {
-        th.style.cursor = "pointer";
-        th.addEventListener("click", () => {
-          const key = th.getAttribute("data-sort-key");
-          if (currentSort.key === key) {
-            currentSort.asc = !currentSort.asc;
-          } else {
-            currentSort.key = key;
-            currentSort.asc = true;
-          }
-          
-          document.querySelectorAll(".sort-header").forEach(h => {
-            h.innerHTML = h.innerHTML.replace(/ [▲▼]/g, "");
-          });
-          th.innerHTML += currentSort.asc ? " ▲" : " ▼";
-          
-          render();
-        });
+      document.getElementById("detailHead").addEventListener("click", event => {
+        const button = event.target.closest(".sort-button");
+        if (!button) return;
+        const key = button.dataset.sortKey;
+        currentSort = { key, asc: currentSort.key === key ? !currentSort.asc : true };
+        renderDetailHead();
+        renderTable(selectedRows());
+        document.querySelector(`.sort-button[data-sort-key="${key}"]`).focus();
       });
-      // Show default indicator
-      const defaultHeader = document.querySelector(".sort-header[data-sort-key='sort']");
-      if (defaultHeader && !defaultHeader.innerHTML.includes("▲")) {
-        defaultHeader.innerHTML += " ▲";
-      }
     }
 
     // Bir grafiğin ipucunu bağlar; locate fareye göre { html, x, top } ya da gizlemek için null döndürür.
@@ -2336,7 +2708,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
     function renderTable(rows) {
       const tbody = document.getElementById("detailRows");
       const tfoot = document.getElementById("detailTotals");
-      
+
       const sortedRows = sortForTable(rows);
 
       const screenCell = (c, r) => {
@@ -2365,14 +2737,14 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
     function reconcileRows(netTotal) {
       if (!includesInvestment(selectedYear)) return "";
       const result = netTotal - INVESTMENT_COST;
-      const blank = "<td></td>".repeat(DETAIL_COLUMNS.length - 2);
+      const label = text => `<td class="reconcile-label" colspan="${DETAIL_COLUMNS.length - 1}"><span>${text}</span></td>`;
       return `
         <tr class="reconcile">
-          <td>− Yatırım maliyeti (kurulum)</td>${blank}
+          ${label("− Yatırım maliyeti (kurulum)")}
           <td class="negative-money">${money.format(-INVESTMENT_COST)}</td>
         </tr>
         <tr class="reconcile is-result">
-          <td>= Net kâr/zarar (Beklenen)</td>${blank}
+          ${label("= Net kâr/zarar (Beklenen)")}
           <td class="${result < 0 ? 'negative-money' : 'positive-money'}">${money.format(result)}</td>
         </tr>`;
     }
@@ -2417,8 +2789,11 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         `<strong>Nasıl okunur:</strong> Çizgiler yatırım maliyetiyle (${moneyMillions(-INVESTMENT_COST)}) başlar ve her ayın sonucunu ekleyerek ilerler. Düz çizgi tahsil edilmemiş gelirler dahil beklenen sonucu, kesikli çizgi yalnızca tahsil edilen gelirlerle oluşan sonucu gösterir. ${expectedText}; ${actualText}.`;
     }
 
+    const currentTheme = () => document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+
     // Tuval grafikleri genişliğe bağlıdır; boyut değişince yalnızca bunlar yeniden çizilir.
-    function drawCharts(rows) {
+    function drawCharts(rows, theme = currentTheme()) {
+      C = CHART_THEMES[theme];
       drawLineChart(rows);
       drawVolumeChart(rows.filter(hasOperationalData));
       drawFinancialBridge(rows);
@@ -2442,9 +2817,10 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       const expectedNetVal = sum(rows, "netIncome") - investment;
       const paidMunicipalVal = sum(paidRows, "municipalIncome");
       const actualNetVal = paidMunicipalVal - sum(rows, "telecom") - investment;
+      document.getElementById("kpiNet").classList.toggle("is-negative", expectedNetVal < 0);
+      document.getElementById("kpiActualNet").classList.toggle("is-negative", actualNetVal < 0);
       animateValue("kpiNet", prevValues.expectedNet, expectedNetVal, 600, money);
       animateValue("kpiActualNet", prevValues.actualNet, actualNetVal, 600, money);
-      animateValue("kpiInvestment", prevValues.investment, INVESTMENT_COST, 600, money);
       document.getElementById("kpiNetNote").textContent = (includeInvestment
         ? "Bekleyen tahsilatlar dahil; şirket, Telekom ve yatırım düşülmüş"
         : "Bekleyen tahsilatlar dahil; şirket ve Telekom düşülmüş (yatırım bu yıla ait değil)");
@@ -2453,7 +2829,8 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         : "Tahsil edilen belediye geliri (şirket ücreti düşülmüş) − dönemin tüm Telekom giderleri (yatırım bu yıla ait değil)");
       setDelta("kpiNetDelta", expectedNetVal, sum(compareRows, "netIncome"));
       setDelta("kpiActualNetDelta", actualNetVal, sum(comparePaidRows, "municipalIncome") - sum(compareRows, "telecom"));
-      setNote("kpiInvestmentDelta", includeInvestment ? "Bu görünümde net sonuca dahil" : "Bu yıl görünümünde net sonuca dahil değil");
+      document.getElementById("kpiInvestmentNote").innerHTML =
+        `Kurulum yatırımı <strong>${money.format(INVESTMENT_COST)}</strong> (KAREL Elektronik San. ve Tic. A.Ş.) · ${includeInvestment ? "bu görünümde net sonuca dahil" : "bu yıl görünümünde net sonuca dahil değil"}`;
       renderBreakEven();
 
       // Tahsilat (oran: belediye geliri bazında, Ödenme durumu paneliyle aynı)
@@ -2461,6 +2838,11 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       const totalMunicipal = paidMunicipalVal + unpaidMunicipalVal;
       const collectionRateVal = totalMunicipal > 0 ? paidMunicipalVal / totalMunicipal * 100 : 0;
       animatePercentage("kpiCollectionRate", prevValues.collectionRate, collectionRateVal, 600);
+      const paidPct = totalMunicipal ? paidMunicipalVal / totalMunicipal * 100 : 0;
+      const unpaidPct = totalMunicipal ? unpaidMunicipalVal / totalMunicipal * 100 : 0;
+      document.getElementById("collectionPaidBar").style.width = `${paidPct}%`;
+      document.getElementById("collectionUnpaidBar").style.width = `${unpaidPct}%`;
+      document.getElementById("collectionTrack").setAttribute("aria-label", `Tahsil edilen %${decimal(paidPct)}, bekleyen %${decimal(unpaidPct)}`);
       animateValue("kpiPaidMunicipalNet", prevValues.paidMunicipal, paidMunicipalVal, 600, money);
       animateValue("kpiUnpaidMunicipalNet", prevValues.unpaidMunicipal, unpaidMunicipalVal, 600, money);
       const monthsWithData = paidRows.length + unpaidRows.length;
@@ -2506,12 +2888,11 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       setCostDelta("kpiCompanyVatDelta", companyVal, sum(compareRows, "companyVat"));
       setCostDelta("kpiTelecomDelta", telecomVal, sum(compareRows, "telecom"));
 
-      document.getElementById("asOf").textContent = `Veri dönemi: ${periodName(data[0])} – ${periodName(data[data.length - 1])}`;
+      document.getElementById("asOf").innerHTML = `Veri dönemi: ${periodName(data[0])} – ${periodName(data[data.length - 1])} <span class="asof-updated">· Son güncelleme: ${DATA_UPDATED}</span>`;
 
       prevValues = {
         expectedNet: expectedNetVal,
         actualNet: actualNetVal,
-        investment: INVESTMENT_COST,
         collectionRate: collectionRateVal,
         paidMunicipal: paidMunicipalVal,
         unpaidMunicipal: unpaidMunicipalVal,
@@ -2520,12 +2901,35 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         telecom: telecomVal
       };
 
-      drawStatusChart(rows);
       drawCharts(rows);
       renderTable(rows);
     }
 
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      const button = document.getElementById("themeToggle");
+      button.setAttribute("aria-pressed", String(theme === "dark"));
+      document.getElementById("themeToggleLabel").textContent = theme === "dark" ? "Açık tema" : "Koyu tema";
+      if (!document.getElementById("dashboardApp").classList.contains("is-locked")) drawCharts(selectedRows());
+    }
+
+    // Kullanıcı seçim yapmadıysa işletim sisteminin açık/koyu ayarını izler.
+    function setupTheme() {
+      applyTheme(currentTheme());
+      document.getElementById("themeToggle").addEventListener("click", () => {
+        const next = currentTheme() === "dark" ? "light" : "dark";
+        try { localStorage.setItem("edsTheme", next); } catch {}
+        applyTheme(next);
+      });
+      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", event => {
+        let saved = null;
+        try { saved = localStorage.getItem("edsTheme"); } catch {}
+        if (!saved) applyTheme(event.matches ? "dark" : "light");
+      });
+    }
+
     setupFilters();
+    setupTheme();
     setupAuth();
     setupSorting();
     setupChartEvents();
@@ -2533,6 +2937,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
     document.getElementById("exportCsv").addEventListener("click", exportToCsv);
     document.getElementById("exportExcel").addEventListener("click", exportToExcel);
     document.getElementById("printReport").addEventListener("click", printReport);
+    document.getElementById("printSummary").addEventListener("click", printSummary);
 
     // Sürükleyerek yeniden boyutlandırma saniyede onlarca olay üretir; durulduktan sonra bir kez çiz.
     let resizeTimer = 0;
