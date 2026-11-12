@@ -1427,6 +1427,9 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
     const INVESTMENT_COST = 37601951.98;
     // Veri tablosu her güncellendiğinde bu tarih de elle güncellenir (gg.aa.yyyy).
     const DATA_UPDATED = "11.11.2026";
+    // Pano özetinde kullanılan kurumsal bilgiler.
+    const PAYER = "Emniyet Genel Müdürlüğü (EGM)";
+    const PREPARED_BY = "Ulaşım Hizmetleri Müdürlüğü";
     const INVESTMENT_YEAR = 2023;
     const fullMonthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
     const periodName = row => `${fullMonthNames[row.month]} ${row.year}`;
@@ -2480,7 +2483,31 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       return images;
     }
 
-    // Yöneticiye götürülecek tek sayfalık özet: antet, KPI'lar, başabaş ve maliyet köprüsü grafikleri.
+    // Özetin başındaki durum cümlesi: tüm dönem için hak edilen ve fiilen tahsil edilen gelirle başabaş.
+    function summaryHeadline() {
+      const { expectedPoint, actualPoint, last, pendingNeeded, running } = breakEvenStatus();
+      const unpaid = data.filter(r => r.status === "Ödenmedi");
+      const unpaidTotal = sum(unpaid, "municipalIncome");
+      const lastPaid = data
+        .filter(r => r.status === "Ödendi")
+        .map(row => ({ row, date: parsePaymentDate(row.paymentDate) }))
+        .filter(item => item.date)
+        .sort((a, b) => b.date - a.date)[0];
+      const lag = lastPaid ? lastPaid.date.getFullYear() * 12 + lastPaid.date.getMonth() - lastPaid.row.sort : null;
+      const investment = moneyMillions(INVESTMENT_COST);
+
+      const first = expectedPoint
+        ? `Tüm dönem itibarıyla sistem, hak edilen gelirle ${periodName(expectedPoint.row)} ayında ${investment} tutarındaki kurulum yatırımını geri kazanmıştır.`
+        : `Tüm dönem itibarıyla hak edilen gelirle kurulum yatırımının (${investment}) geri kazanılmasına ${moneyMillions(-last.expected)} kalmıştır.`;
+      if (actualPoint) return `${first} Fiilen tahsil edilen gelirle de ${periodName(actualPoint.row)} ayında başabaşa ulaşılmıştır.`;
+      const second = `${expectedPoint ? "Ancak " : ""}${PAYER} tarafından belediyeye yapılan ödemeler${lag !== null ? `, ait oldukları dönemden yaklaşık ${lag} ay sonra` : ""} geldiği için bugüne kadar fiilen tahsil edilen gelirle ${moneyMillions(Math.abs(last.actual))} açık bulunmaktadır.`;
+      const third = running >= 0
+        ? `Bekleyen ${pendingNeeded.length} dönemin (${shortPeriod(pendingNeeded[0])} – ${shortPeriod(pendingNeeded[pendingNeeded.length - 1])}) ödemesi geldiğinde fiilen başabaşa ulaşılır; toplam bekleyen belediye geliri ${moneyMillions(unpaidTotal)} (${unpaid.length} ay).`
+        : `Bekleyen tüm ödemeler (${moneyMillions(unpaidTotal)}, ${unpaid.length} ay) gelse de fiilen başabaşa ${moneyMillions(-running)} kalır.`;
+      return `${first} ${second} ${third}`;
+    }
+
+    // Yöneticiye götürülecek tek sayfalık özet: antet, durum özeti, KPI'lar, başabaş ve maliyet köprüsü grafikleri.
     function printSummary() {
       const rows = selectedRows();
       const escape = text => String(text).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
@@ -2492,22 +2519,25 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       const periodText = `${periodName(periodRows[0])} – ${periodName(periodRows[periodRows.length - 1])}`;
       const scopeText = selectedYear === "all" ? "Tüm yıllar" : `${selectedYear} yılı`;
       const logoUrl = new URL("assets/kutahya-belediyesi-logo.webp", location.href).href;
-      const charts = captureCharts(["breakEvenChart", "bridgeChart"], 640, 330);
+      const charts = captureCharts(["breakEvenChart", "bridgeChart"], 640, 235);
+      const includeInvestment = includesInvestment(selectedYear);
 
       // Kart değerleri animasyonun ortasında olabilir; son hesaplanan değerler kullanılır.
       const v = prevValues;
       const cls = value => value < 0 ? "neg" : "";
+      // Satır 1: sonuç, satır 2: tahsilat, satır 3: operasyon ve maliyet.
       const kpis = [
-        ["Beklenen net kâr/zarar", money.format(v.expectedNet), text("kpiNetNote"), cls(v.expectedNet), "primary"],
-        ["Tahsilat bazlı net kâr/zarar", money.format(v.actualNet), text("kpiActualNetNote"), cls(v.actualNet), "primary"],
-        ["Beklenen başabaş (tüm dönem)", text("kpiBreakEven"), text("kpiBreakEvenDelta"), "", ""],
-        ["Tahsilat oranı", `%${decimal(v.collectionRate)}`, text("kpiCollectionRateDelta"), "", ""],
-        ["Son ödeme", text("kpiLastPayment"), text("kpiLastPaymentNote"), "", ""],
-        ["Tahsil edilen belediye geliri", money.format(v.paidMunicipal), "Ödenmiş aylar; şirket ücreti düşülmüş", "", ""],
-        ["Bekleyen belediye geliri", money.format(v.unpaidMunicipal), text("kpiUnpaidMunicipalNetDelta"), "", ""],
-        ["Toplam ceza adedi", number.format(v.totalCount), text("kpiCountNote"), "", ""],
-        ["Şirket ücreti (KDV dahil)", money.format(v.company), text("kpiCompanyVatNote"), "", ""],
-        ["Telekom gideri", money.format(v.telecom), "Veri hattı faturaları", "", ""]
+        ["Beklenen net kâr/zarar", money.format(v.expectedNet), text("kpiNetNote"), cls(v.expectedNet), "primary w3"],
+        ["Tahsilat bazlı net kâr/zarar", money.format(v.actualNet), text("kpiActualNetNote"), cls(v.actualNet), "primary w3"],
+        ["Beklenen başabaş (tüm dönem)", text("kpiBreakEven"), text("kpiBreakEvenDelta"), "", "w3"],
+        ["Kurulum yatırımı", money.format(INVESTMENT_COST), `Tek seferlik; KAREL Elektronik San. ve Tic. A.Ş. · ${includeInvestment ? "bu görünümde net sonuca dahil" : "bu yıl görünümünde net sonuca dahil değil"}`, "", "w3"],
+        ["Tahsilat oranı", `%${decimal(v.collectionRate)}`, `Tutar bazında · ${text("kpiCollectionRateDelta")}`, "", "w3"],
+        ["Tahsil edilen belediye geliri", money.format(v.paidMunicipal), "Ödenmiş aylar; şirket ücreti düşülmüş", "", "w3"],
+        ["Bekleyen belediye geliri", money.format(v.unpaidMunicipal), text("kpiUnpaidMunicipalNetDelta"), "", "w3"],
+        ["Son ödeme", text("kpiLastPayment"), text("kpiLastPaymentNote"), "", "w3"],
+        ["Toplam ceza adedi", number.format(v.totalCount), text("kpiCountNote"), "", "w4"],
+        ["Şirket ücreti (KDV dahil)", money.format(v.company), `${text("kpiCompanyVatNote")} · EGM'den ödeme geldikçe şirkete ödenir`, "", "w4"],
+        ["Telekom gideri", money.format(v.telecom), "Veri hattı faturaları", "", "w4"]
       ];
 
       const html = `<!doctype html>
@@ -2519,7 +2549,7 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
   @page {
     size: A4 landscape;
     margin: 10mm 10mm 12mm;
-    @bottom-left { content: "T.C. Kütahya Belediyesi · EDS Ceza Gelirleri Pano Özeti"; font: 7.5pt "Segoe UI", Arial, sans-serif; color: #667085; }
+    @bottom-left { content: "T.C. Kütahya Belediyesi · ${PREPARED_BY} · EDS Ceza Gelirleri Pano Özeti"; font: 7.5pt "Segoe UI", Arial, sans-serif; color: #667085; }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
@@ -2531,11 +2561,17 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
     print-color-adjust: exact;
   }
   ${LETTERHEAD_CSS}
-  .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.5mm; margin: 4mm 0; }
-  .kpi { border: 0.6pt solid #cbd5e1; border-radius: 1.5mm; padding: 2.2mm 2.8mm; background: #f6f7fb; break-inside: avoid; }
+  .headline { display: grid; grid-template-columns: 3fr 2fr; gap: 5mm; margin: 3mm 0 0; padding: 2.5mm 3.5mm; border: 0.6pt solid #9fb3e8; border-radius: 1.5mm; background: #eef3ff; font-size: 8.2pt; line-height: 1.42; color: #1f2a44; break-inside: avoid; }
+  .headline p { margin: 0; }
+  .headline p + p { padding-left: 5mm; border-left: 0.6pt solid #c3cfee; font-size: 7.2pt; color: #475467; }
+  .headline strong { color: #1b2152; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2.2mm; margin: 2.5mm 0; }
+  .kpi { border: 0.6pt solid #cbd5e1; border-radius: 1.5mm; padding: 1.8mm 2.6mm; background: #f6f7fb; break-inside: avoid; }
+  .kpi.w3 { grid-column: span 3; }
+  .kpi.w4 { grid-column: span 4; }
   .kpi.primary { background: #eef3ff; border-color: #9fb3e8; }
   .kpi span { display: block; font-size: 6.8pt; font-weight: 700; color: #475467; text-transform: uppercase; letter-spacing: .02em; }
-  .kpi strong { display: block; margin: 1mm 0 0.6mm; font-size: 11pt; font-variant-numeric: tabular-nums; }
+  .kpi strong { display: block; margin: 0.8mm 0 0.5mm; font-size: 11pt; font-variant-numeric: tabular-nums; }
   .kpi.primary strong { font-size: 12.5pt; }
   .kpi small { display: block; font-size: 6.5pt; line-height: 1.35; color: #64748b; }
   .neg { color: #b42318; }
@@ -2561,7 +2597,12 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       <div><strong>Dönem:</strong> ${escape(periodText)}</div>
       <div><strong>Veri güncelleme:</strong> ${escape(DATA_UPDATED)}</div>
       <div><strong>Rapor tarihi:</strong> ${escape(printedAt)}</div>
+      <div><strong>Hazırlayan:</strong> ${escape(PREPARED_BY)}</div>
     </div>
+  </div>
+  <div class="headline">
+    <p><strong>Durum özeti:</strong> ${escape(summaryHeadline())}</p>
+    <p><strong>Para akışı:</strong> Belediye payı (net ceza tutarının %30'u) ${escape(PAYER)} tarafından belediyeye ödenir; şirket ücreti (KDV dahil) bu ödemeler geldikçe şirkete ödenir. Bu yüzden sonuçlar iki bazda verilir: <strong>beklenen</strong> (hak edilen, bekleyen ödemeler dahil) ve <strong>tahsilat bazlı</strong> (yalnızca fiilen gelen).</p>
   </div>
   <div class="kpi-grid">
     ${kpis.map(([label, value, note, valueClass, boxClass]) => `<div class="kpi ${boxClass}"><span>${escape(label)}</span><strong class="${valueClass}">${escape(value)}</strong><small>${escape(note)}</small></div>`).join("")}
@@ -2577,7 +2618,6 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
     </figure>
   </div>
   <div class="notes">
-    <p><strong>Başabaş:</strong> ${escape(text("kpiBreakEvenNote"))}</p>
     <p><strong>Terimler:</strong> Brüt belediye payı net ceza tutarının %30'udur. Belediye geliri, brüt paydan şirket ücreti (KDV dahil) düşülerek; net katkı, belediye gelirinden Telekom gideri düşülerek; net kâr/zarar ise net katkıdan kurulum yatırımı düşülerek hesaplanır.</p>
   </div>
 </body>
@@ -2753,14 +2793,14 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
       return `${value < 0 ? "−" : ""}₺${decimal(Math.abs(value) / 1000000, digits)} mn`;
     }
 
-    function renderBreakEven() {
+    const shortPeriod = row => `${monthNames[row.month]} ${row.year}`;
+
+    // Tüm dönem başabaş durumu; bekleyen ödemeler dönem sırasıyla gelirse fiilen başabaş için kaç dönemin ödenmesi gerektiği.
+    function breakEvenStatus() {
       const points = cumulativePoints();
       const expectedPoint = points.find(p => p.expected >= 0);
       const actualPoint = points.find(p => p.actual >= 0);
       const last = points[points.length - 1];
-      const shortPeriod = row => `${monthNames[row.month]} ${row.year}`;
-
-      // Bekleyen ödemeler dönem sırasıyla gelirse fiilen başabaş için kaç dönemin ödenmesi gerektiği.
       const pendingNeeded = [];
       let running = last.actual;
       for (const row of data.filter(r => r.status === "Ödenmedi")) {
@@ -2768,6 +2808,11 @@ Eyl.26	3.581	₺12.458.672,00	₺3.737.601,60	25	₺83.195,00	₺24.958,50	₺12
         running += row.municipalIncome;
         pendingNeeded.push(row);
       }
+      return { expectedPoint, actualPoint, last, pendingNeeded, running };
+    }
+
+    function renderBreakEven() {
+      const { expectedPoint, actualPoint, last, pendingNeeded, running } = breakEvenStatus();
       const cashText = actualPoint ? "" : running >= 0
         ? `bekleyen ${pendingNeeded.length} dönemin (${shortPeriod(pendingNeeded[0])} – ${shortPeriod(pendingNeeded[pendingNeeded.length - 1])}) ödemesi tamamlandığında fiilen başabaşa ulaşılır`
         : `bekleyen tüm ödemeler gelse de fiilen başabaşa ${moneyMillions(-running)} kalır`;
